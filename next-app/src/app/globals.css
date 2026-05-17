@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: #0b0b10;
+  --color-surface: #12121a;
+  --color-card: #18181f;
+  --color-border: #252530;
+  --color-accent: #818cf8;
+  --color-accent-hover: #6366f1;
+  --color-muted: #6b6b7b;
+  --color-text: #e1e1e9;
+  --color-text-dim: #9d9db0;
+  --color-success: #34d399;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+}
+
+body {
+  background: #0b0b10;
+  color: #e1e1e9;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99, 102, 241, 0.08), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-card {
+  background: rgba(24, 24, 31, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid #252530;
+  border-radius: 16px;
+}
+
+.glass-input {
+  background: rgba(18, 18, 26, 0.8);
+  border: 1px solid #252530;
+  border-radius: 10px;
+  color: #e1e1e9;
+  padding: 10px 14px;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+}
+
+.glass-input::placeholder {
+  color: #525263;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #252530;
+  color: #9d9db0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-ghost:hover {
+  border-color: #818cf8;
+  color: #e1e1e9;
+}
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+@media (max-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.custom-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #3f3f50;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.15s;
+}
+
+.custom-checkbox:checked {
+  background: #818cf8;
+  border-color: #818cf8;
+}
+
+.custom-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 6px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.score-badge-high {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.score-badge-mid {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.score-badge-low {
+  background: rgba(107, 107, 123, 0.15);
+  color: #6b6b7b;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast {
+  animation: toast-in 0.3s ease;
+}
