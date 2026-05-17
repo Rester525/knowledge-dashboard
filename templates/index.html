@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg:      '#0b0b10',
+        surface: '#12121a',
+        card:    '#18181f',
+        border:  '#252530',
+        accent:  '#818cf8',
+        'accent-glow': 'rgba(129,140,248,0.15)',
+        muted:   '#6b6b7b',
+        text:    '#e1e1e9',
+        success: '#34d399',
+        danger:  '#f87171',
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0b0b10;
+    color: #e1e1e9;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(129,140,248,0.06), transparent),
+      radial-gradient(ellipse 50% 60% at 100% 80%, rgba(129,140,248,0.03), transparent);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  main, header { position: relative; z-index: 1; }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 1rem;
+  }
+
+  .card {
+    background: #18181f;
+    border: 1px solid #252530;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover { border-color: #2e2e3c; }
+
+  .card-glass {
+    background: rgba(24,24,31,0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(37,37,48,0.8);
+    border-radius: 1rem;
+    padding: 1.25rem;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #818cf8, #6366f1);
+    color: #fff;
+    border: none;
+    border-radius: 0.625rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.01em;
+  }
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(129,140,248,0.3); }
+  .btn-primary:active { transform: scale(0.98); }
+
+  .input-field {
+    background: #12121a;
+    border: 1px solid #252530;
+    border-radius: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #e1e1e9;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    font-family: inherit;
+  }
+  .input-field::placeholder { color: #4a4a5a; }
+  .input-field:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.1); }
+
+  textarea.input-field { resize: none; }
+
+  /* Custom checkbox */
+  input[type="checkbox"] {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border: 1.5px solid #3a3a4a;
+    border-radius: 0.25rem;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  input[type="checkbox"]:checked {
+    background: #818cf8;
+    border-color: #818cf8;
+  }
+  input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #252530; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a4a; }
+
+  @media (max-width: 1024px) {
+    .bento-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Search glow */
+  .search-glow:focus { box-shadow: 0 0 0 3px rgba(129,140,248,0.15), 0 0 40px rgba(129,140,248,0.08); }
+
+  /* Fade in */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b border-border/50 px-6 py-4">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-violet-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-accent/20">K</div>
+      <div>
+        <h1 class="text-lg font-semibold text-text tracking-tight">Knowledge Dashboard</h1>
+        <p class="text-xs text-muted">local · private · smart</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="relative flex h-2 w-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+      </span>
+      <span class="text-xs text-muted">All data stored locally</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-6 py-6 pb-12">
+<div class="bento-grid">
+
+<!-- ===== LEFT: Capture ===== -->
+<div class="flex flex-col gap-3">
+
+  <div class="card-glass">
+    <div class="flex items-center gap-2 mb-3">
+      <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-muted">New Note</h2>
+    </div>
+    <textarea id="note-input" rows="3" placeholder="Capture a thought..."
+      class="input-field mb-3"></textarea>
+    <button onclick="createNote()" class="btn-primary w-full">Save & Index</button>
+  </div>
+
+  <div class="card-glass">
+    <div class="flex items-center gap-2 mb-3">
+      <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-muted">Task</h2>
+    </div>
+    <div class="flex gap-2">
+      <input id="todo-input" type="text" placeholder="What needs doing?" class="input-field flex-1"
+        onkeydown="if(event.key==='Enter') createTodo()" />
+      <button onclick="createTodo()" class="btn-primary shrink-0">Add</button>
+    </div>
+  </div>
+
+  <div class="card-glass">
+    <div class="flex items-center gap-2 mb-3">
+      <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-muted">Bookmark</h2>
+    </div>
+    <input id="bookmark-title" type="text" placeholder="Title" class="input-field mb-2" />
+    <input id="bookmark-url" type="url" placeholder="https://..." class="input-field mb-3" />
+    <button onclick="createBookmark()" class="btn-primary w-full">Save Link</button>
+  </div>
+</div>
+
+<!-- ===== MIDDLE: Search + Notes ===== -->
+<div class="flex flex-col gap-3">
+
+  <div class="card-glass">
+    <div class="relative">
+      <svg class="absolute left-3.5 top-3 w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+      </svg>
+      <input id="search-input" type="text"
+        placeholder="Search by meaning — try natural language..."
+        class="input-field !bg-[#0f0f17] !border-[#2a2a38] !pl-10 !pr-24 !py-3 !text-sm search-glow"
+        onkeydown="if(event.key==='Enter') doSearch()" />
+      <button onclick="doSearch()"
+        class="absolute right-2 top-1.5 btn-primary !py-1.5 !px-4 !text-xs">
+        Search
+      </button>
+    </div>
+    <div id="search-status" class="text-xs text-muted mt-2 hidden"></div>
+  </div>
+
+  <div id="search-results" class="hidden fade-in">
+    <div class="card-glass">
+      <h2 id="results-heading" class="text-xs font-semibold uppercase tracking-wider text-muted mb-3">Results</h2>
+      <div id="results-list" class="flex flex-col gap-2"></div>
+    </div>
+  </div>
+
+  <div class="card-glass flex-1">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-muted">Notes</h2>
+      </div>
+      <span id="note-count" class="text-xs text-muted">0</span>
+    </div>
+    <div id="notes-list" class="flex flex-col gap-1.5 max-h-[440px] overflow-y-auto pr-1">
+      <p class="text-xs text-muted/60 italic py-6 text-center">No notes yet. Write your first one →</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RIGHT: Todos + Bookmarks ===== -->
+<div class="flex flex-col gap-3">
+
+  <div class="card-glass">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-muted">Tasks</h2>
+      </div>
+      <span id="todo-count" class="text-xs text-muted">0</span>
+    </div>
+    <div id="todos-list" class="flex flex-col gap-0.5 max-h-56 overflow-y-auto pr-1">
+      <p class="text-xs text-muted/60 italic py-4 text-center">Nothing yet →</p>
+    </div>
+  </div>
+
+  <div class="card-glass">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-muted">Links</h2>
+      </div>
+      <span id="bookmark-count" class="text-xs text-muted">0</span>
+    </div>
+    <div id="bookmarks-list" class="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
+      <p class="text-xs text-muted/60 italic py-4 text-center">No links saved →</p>
+    </div>
+  </div>
+</div>
+
+</div>
+</main>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden rounded-xl px-4 py-3 text-xs font-medium shadow-2xl transition-all duration-300 border"></div>
+
+<script>
+const API = '/api';
+
+function showToast(msg, ok = true) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `fixed bottom-6 right-6 z-50 rounded-xl px-4 py-3 text-xs font-medium shadow-2xl transition-all duration-300 border ${
+    ok ? 'bg-[#064e3b] border-emerald-500/30 text-emerald-300' : 'bg-[#4c0519] border-red-500/30 text-red-300'
+  }`;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 2800);
+}
+
+// ── Notes ────────────────────────────────────────────────────
+async function createNote() {
+  const input = document.getElementById('note-input');
+  const content = input.value.trim();
+  if (!content) return showToast('Enter some text.', false);
+  try {
+    const res = await fetch(`${API}/notes`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    input.value = '';
+    showToast('Note saved & indexed.');
+    loadNotes();
+  } catch (e) {
+    console.error(e); showToast('Failed to save note.', false);
+  }
+}
+
+async function loadNotes() {
+  try {
+    const res = await fetch(`${API}/notes`);
+    if (!res.ok) throw new Error(await res.text());
+    const notes = await res.json();
+    const list = document.getElementById('notes-list');
+    document.getElementById('note-count').textContent = notes.length;
+
+    if (!notes.length) {
+      list.innerHTML = '<p class="text-xs text-muted/60 italic py-6 text-center">No notes yet. Write your first one →</p>';
+      return;
+    }
+
+    list.innerHTML = notes.map(n => `
+      <div class="group flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-[#1e1e28] transition cursor-default">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-text/90 whitespace-pre-wrap leading-relaxed">${escapeHtml(n.content)}</p>
+          <span class="text-[10px] text-muted mt-1 inline-block">${formatDate(n.created_at)}</span>
+        </div>
+        <button onclick="deleteNote(${n.id})"
+          class="text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition text-sm shrink-0 mt-0.5"
+          title="Delete">&times;</button>
+      </div>
+    `).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function deleteNote(id) {
+  if (!confirm('Delete this note?')) return;
+  try {
+    await fetch(`${API}/notes/${id}`, { method: 'DELETE' });
+    showToast('Note deleted.');
+    loadNotes(); clearSearch();
+  } catch (e) { console.error(e); showToast('Failed.', false); }
+}
+
+// ── Search ───────────────────────────────────────────────────
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return showToast('Enter a search query.', false);
+  const status = document.getElementById('search-status');
+  const box = document.getElementById('search-results');
+  const list = document.getElementById('results-list');
+  const heading = document.getElementById('results-heading');
+
+  status.textContent = 'Searching semantically...';
+  status.classList.remove('hidden');
+
+  try {
+    const res = await fetch(`${API}/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    status.textContent = `${data.results.length} result${data.results.length !== 1 ? 's' : ''}`;
+    heading.textContent = `"${q}"`;
+
+    if (!data.results.length) {
+      list.innerHTML = '<p class="text-xs text-muted/60 italic py-3 text-center">Nothing matched. Try different wording.</p>';
+    } else {
+      list.innerHTML = data.results.map(r => `
+        <div class="flex items-start gap-2.5 p-2.5 rounded-lg hover:bg-[#1e1e28] transition">
+          <p class="text-sm text-text/90 whitespace-pre-wrap flex-1 leading-relaxed">${escapeHtml(r.content)}</p>
+          <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
+            r.score > 0.5 ? 'bg-emerald-500/15 text-emerald-400' :
+            r.score > 0.25 ? 'bg-amber-500/15 text-amber-400' :
+            'bg-[#252530] text-muted'
+          }">${Math.round(r.score * 100)}%</span>
+        </div>
+      `).join('');
+    }
+    box.classList.remove('hidden');
+  } catch (e) {
+    console.error(e);
+    status.textContent = 'Search failed.';
+    showToast('Search failed.', false);
+  }
+}
+
+function clearSearch() {
+  document.getElementById('search-results').classList.add('hidden');
+  document.getElementById('search-status').classList.add('hidden');
+}
+
+// ── Todos ────────────────────────────────────────────────────
+async function createTodo() {
+  const input = document.getElementById('todo-input');
+  const text = input.value.trim();
+  if (!text) return showToast('Enter a task.', false);
+  try {
+    const res = await fetch(`${API}/todos`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    input.value = '';
+    showToast('Task added.');
+    loadTodos();
+  } catch (e) { console.error(e); showToast('Failed.', false); }
+}
+
+async function loadTodos() {
+  try {
+    const res = await fetch(`${API}/todos`);
+    if (!res.ok) throw new Error(await res.text());
+    const todos = await res.json();
+    const list = document.getElementById('todos-list');
+    const pending = todos.filter(t => !t.completed).length;
+    document.getElementById('todo-count').textContent = pending ? `${pending} left` : 'done';
+
+    if (!todos.length) {
+      list.innerHTML = '<p class="text-xs text-muted/60 italic py-4 text-center">Nothing yet →</p>';
+      return;
+    }
+
+    list.innerHTML = todos.map(t => `
+      <div class="flex items-center gap-2.5 py-1.5 px-1 group rounded-md hover:bg-[#1e1e28] transition">
+        <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTodo(${t.id})" />
+        <span class="text-sm flex-1 ${t.completed ? 'line-through text-muted/40' : 'text-text/80'}">${escapeHtml(t.text)}</span>
+        <button onclick="deleteTodo(${t.id})"
+          class="text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition text-sm shrink-0">&times;</button>
+      </div>
+    `).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function toggleTodo(id) {
+  try {
+    await fetch(`${API}/todos/${id}/toggle`, { method: 'PUT' });
+    loadTodos();
+  } catch (e) { console.error(e); }
+}
+
+async function deleteTodo(id) {
+  try {
+    await fetch(`${API}/todos/${id}`, { method: 'DELETE' });
+    loadTodos();
+  } catch (e) { console.error(e); }
+}
+
+// ── Bookmarks ────────────────────────────────────────────────
+async function createBookmark() {
+  const ti = document.getElementById('bookmark-title');
+  const ui = document.getElementById('bookmark-url');
+  const title = ti.value.trim();
+  let url = ui.value.trim();
+  if (!title || !url) return showToast('Enter title and URL.', false);
+  if (!/^https?:\/\//.test(url)) url = 'https://' + url;
+  try {
+    const res = await fetch(`${API}/bookmarks`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, url }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    ti.value = ''; ui.value = '';
+    showToast('Bookmark saved.');
+    loadBookmarks();
+  } catch (e) { console.error(e); showToast('Failed.', false); }
+}
+
+async function loadBookmarks() {
+  try {
+    const res = await fetch(`${API}/bookmarks`);
+    if (!res.ok) throw new Error(await res.text());
+    const bookmarks = await res.json();
+    const list = document.getElementById('bookmarks-list');
+    document.getElementById('bookmark-count').textContent = bookmarks.length;
+
+    if (!bookmarks.length) {
+      list.innerHTML = '<p class="text-xs text-muted/60 italic py-4 text-center">No links saved →</p>';
+      return;
+    }
+
+    list.innerHTML = bookmarks.map(b => `
+      <div class="group flex items-start gap-2 p-2 rounded-lg hover:bg-[#1e1e28] transition">
+        <svg class="w-4 h-4 text-muted shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        <div class="min-w-0 flex-1">
+          <a href="${escapeHtml(b.url)}" target="_blank" rel="noopener"
+            class="text-sm font-medium text-accent hover:underline truncate block">${escapeHtml(b.title)}</a>
+          <span class="text-[10px] text-muted truncate block mt-0.5">${escapeHtml(b.url)}</span>
+        </div>
+        <button onclick="deleteBookmark(${b.id})"
+          class="text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition text-sm shrink-0">&times;</button>
+      </div>
+    `).join('');
+  } catch (e) { console.error(e); }
+}
+
+async function deleteBookmark(id) {
+  try {
+    await fetch(`${API}/bookmarks/${id}`, { method: 'DELETE' });
+    showToast('Removed.');
+    loadBookmarks();
+  } catch (e) { console.error(e); }
+}
+
+// ── Utils ────────────────────────────────────────────────────
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  const diff = Date.now() - d;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('%c Dashboard ready ', 'background:#818cf8;color:#fff;padding:4px 8px;border-radius:4px;');
+  loadNotes(); loadTodos(); loadBookmarks();
+});
+</script>
+
+</body>
+</html>

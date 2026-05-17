@@ -1,0 +1,20 @@
+# Data directory (SQLite + ChromaDB)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Environment
+.env.local
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
