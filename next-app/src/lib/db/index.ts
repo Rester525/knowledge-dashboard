@@ -28,5 +28,11 @@ export { sql };
 
 export async function initSchema() {
   const schema = readFileSync(join(process.cwd(), 'src/lib/db/schema.sql'), 'utf8');
-  await getSql().query(schema);
+  const statements = schema
+    .split(';')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  for (const stmt of statements) {
+    await getSql().query(stmt);
+  }
 }
