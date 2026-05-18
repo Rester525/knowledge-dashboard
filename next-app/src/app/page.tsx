@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { AuthForm } from "@/components/auth/AuthForm";
 import { Header } from "@/components/Header";
 import { NewNote } from "@/components/NewNote";
 import { NewTodo } from "@/components/NewTodo";
@@ -12,6 +14,8 @@ import { BookmarksList } from "@/components/BookmarksList";
 import { ToastContainer } from "@/components/Toast";
 
 export default function Home() {
+  const { user, loading } = useAuth();
+
   const [notes, setNotes] = useState([]);
   const [todos, setTodos] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
@@ -38,16 +42,35 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetchNotes();
-    fetchTodos();
-    fetchBookmarks();
-  }, [fetchNotes, fetchTodos, fetchBookmarks]);
+    if (user) {
+      fetchNotes();
+      fetchTodos();
+      fetchBookmarks();
+    }
+  }, [user, fetchNotes, fetchTodos, fetchBookmarks]);
 
   const refreshAll = useCallback(() => {
     fetchNotes();
     fetchTodos();
     fetchBookmarks();
   }, [fetchNotes, fetchTodos, fetchBookmarks]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[#818cf8] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <AuthForm />
+        <ToastContainer />
+      </>
+    );
+  }
 
   return (
     <div className="relative z-10">

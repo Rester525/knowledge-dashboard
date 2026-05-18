@@ -1,6 +1,10 @@
 "use client";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+
 export function Header() {
+  const { user, logout } = useAuth();
+
   return (
     <header className="relative z-10 px-6 py-5 flex items-center justify-between max-w-[1400px] mx-auto">
       <div className="flex items-center gap-3">
@@ -13,9 +17,15 @@ export function Header() {
           <p className="text-sm text-[#6b6b7b]">local / private / smart</p>
         </div>
       </div>
-      <div className="flex items-center gap-2 text-sm text-[#6b6b7b]">
-        <span className="w-2 h-2 rounded-full bg-[#34d399] animate-pulse" />
-        <span className="hidden sm:inline">All data stored locally</span>
+      <div className="flex items-center gap-3 text-sm text-[#6b6b7b]">
+        {user && (
+          <>
+            <span className="hidden sm:inline">{user.email}</span>
+            <button className="btn-ghost" onClick={logout}>
+              Sign out
+            </button>
+          </>
+        )}
       </div>
     </header>
   );
