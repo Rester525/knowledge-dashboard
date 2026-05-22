@@ -12,8 +12,13 @@ node_modules/
 out/
 
 # Environment
+.env
 .env.local
 .env*.local
+
+# Build output
+dist/
+out/
 
 # OS
 .DS_Store
