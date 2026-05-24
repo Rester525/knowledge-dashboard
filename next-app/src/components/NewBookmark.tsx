@@ -31,7 +31,7 @@ export function NewBookmark({ onCreated }: { onCreated: () => void }) {
 
   return (
     <div className="glass-card p-5">
-      <h3 className="text-[#e1e1e9] font-semibold mb-3 text-sm uppercase tracking-wider">New Bookmark</h3>
+      <h3 className="text-slate-900 font-semibold mb-3 text-sm uppercase tracking-wider">New Bookmark</h3>
       <input
         className="glass-input text-sm mb-2"
         placeholder="Title"

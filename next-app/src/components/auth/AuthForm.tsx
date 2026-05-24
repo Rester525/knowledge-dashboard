@@ -32,17 +32,9 @@ export function AuthForm() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="glass-card w-full max-w-sm p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg"
-            style={{ background: 'linear-gradient(135deg, #818cf8, #6366f1)' }}
-          >
-            K
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-[#e1e1e9]">Knowledge Dashboard</h1>
-            <p className="text-xs text-[#6b6b7b]">sign in to continue</p>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-slate-900">Knowledge</h1>
+          <p className="text-sm text-slate-500 mt-1">AI Study Dashboard</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -68,7 +60,7 @@ export function AuthForm() {
           />
 
           {error && (
-            <p className="text-[#f87171] text-sm">{error}</p>
+            <p className="text-red-500 text-sm">{error}</p>
           )}
 
           <button
@@ -84,12 +76,12 @@ export function AuthForm() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-[#6b6b7b]">
+        <p className="mt-6 text-center text-sm text-slate-500">
           {mode === 'login' ? (
             <>
               No account?{' '}
               <button
-                className="text-[#818cf8] hover:underline"
+                className="text-blue-600 hover:underline"
                 onClick={() => { setMode('signup'); setError(null); }}
               >
                 Sign up
@@ -99,7 +91,7 @@ export function AuthForm() {
             <>
               Already have an account?{' '}
               <button
-                className="text-[#818cf8] hover:underline"
+                className="text-blue-600 hover:underline"
                 onClick={() => { setMode('login'); setError(null); }}
               >
                 Sign in

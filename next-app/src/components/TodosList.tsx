@@ -36,7 +36,7 @@ export function TodosList({ todos, onRefresh }: { todos: Todo[]; onRefresh: () =
   if (todos.length === 0) {
     return (
       <div className="glass-card p-5 text-center">
-        <p className="text-sm text-[#6b6b7b]">Nothing yet. Add a task above.</p>
+        <p className="text-sm text-slate-500">Nothing yet. Add a task above.</p>
       </div>
     );
   }
@@ -44,18 +44,18 @@ export function TodosList({ todos, onRefresh }: { todos: Todo[]; onRefresh: () =
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-[#6b6b7b]">{pending} pending</span>
+        <span className="text-xs text-slate-500">{pending} pending</span>
       </div>
       <div className="space-y-1 max-h-[300px] overflow-y-auto">
         {todos.map((t) => (
-          <div key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#12121a]/50 group">
+          <div key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 group">
             <input
               type="checkbox"
               className="custom-checkbox"
               checked={t.completed}
               onChange={() => toggle(t.id)}
             />
-            <span className={`text-sm flex-1 ${t.completed ? "line-through text-[#525263]" : "text-[#e1e1e9]"}`}>
+            <span className={`text-sm flex-1 ${t.completed ? "line-through text-slate-400" : "text-slate-900"}`}>
               {t.text}
             </span>
             <button

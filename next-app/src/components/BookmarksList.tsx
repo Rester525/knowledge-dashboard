@@ -24,7 +24,7 @@ export function BookmarksList({ bookmarks, onRefresh }: { bookmarks: Bookmark[];
   if (bookmarks.length === 0) {
     return (
       <div className="glass-card p-5 text-center">
-        <p className="text-sm text-[#6b6b7b]">No links saved yet.</p>
+        <p className="text-sm text-slate-500">No links saved yet.</p>
       </div>
     );
   }
@@ -32,15 +32,15 @@ export function BookmarksList({ bookmarks, onRefresh }: { bookmarks: Bookmark[];
   return (
     <div className="space-y-1 max-h-[300px] overflow-y-auto">
       {bookmarks.map((b) => (
-        <div key={b.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#12121a]/50 group">
+        <div key={b.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 group">
           <a
             href={b.url}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 min-w-0"
           >
-            <p className="text-sm text-[#818cf8] truncate hover:underline">{b.title}</p>
-            <p className="text-xs text-[#525263] truncate">{b.url}</p>
+            <p className="text-sm text-blue-600 truncate hover:underline">{b.title}</p>
+            <p className="text-xs text-slate-400 truncate">{b.url}</p>
           </a>
           <button
             className="btn-ghost opacity-0 group-hover:opacity-100 transition-opacity text-xs flex-shrink-0"

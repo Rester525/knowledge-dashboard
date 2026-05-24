@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark" />
+  <meta name="description" content="Knowledge Dashboard — Personal study analytics and knowledge management">
+  <meta name="theme-color" content="#0ea5e9">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"></noscript>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;overflow:hidden}
+    #app{display:flex;height:100vh;width:100vw}
+    .sidebar{width:240px;flex-shrink:0;background:#1e293b;border-right:1px solid #334155;display:flex;flex-direction:column}
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .content{flex:1;overflow-y:auto;padding:24px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;cursor:pointer;color:#94a3b8;transition:all .15s;font-size:14px;font-weight:500;margin:2px 8px}
+    .nav-item:hover{background:#334155;color:#e2e8f0}
+    .nav-item.active{background:#0ea5e9;color:#fff}
+    @media(max-width:768px){.sidebar{width:60px}.nav-item span{display:none}.sidebar h1,.sidebar p{display:none}}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px}
+    .glass{background:rgba(30,41,59,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+    .calc-preset{padding:6px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#94a3b8;cursor:pointer;font-size:12px;transition:all .15s}
+    .calc-preset:hover{background:#334155;color:#e2e8f0;border-color:#475569}
+    .study-tab{padding:8px 20px;border-radius:8px;border:1px solid #334155;background:transparent;color:#94a3b8;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+    .study-tab.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+    .study-tab:hover:not(.active){background:#334155;color:#e2e8f0}
+    @keyframes dot-pulse{0%,80%,100%{opacity:0}40%{opacity:1}}
+    .spinner-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#0ea5e9;margin:0 3px;animation:dot-pulse 1.4s infinite ease-in-out both}
+    .spinner-dot:nth-child(1){animation-delay:-.32s}
+    .spinner-dot:nth-child(2){animation-delay:-.16s}
+    .drop-zone{border:2px dashed #334155;border-radius:12px;padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s;background:#0f172a}
+    .drop-zone:hover,.drop-zone.drag-over{border-color:#0ea5e9;background:rgba(14,165,233,0.05)}
+    .drop-zone.drag-over{border-color:#34d399;background:rgba(52,211,153,0.05)}
+    .drop-zone.has-file{border-color:#34d399;border-style:solid;background:rgba(52,211,153,0.05)}
+    .progress-track{height:8px;background:#1e293b;border-radius:4px;overflow:hidden}
+    .progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#0ea5e9,#34d399);transition:width .4s ease}
+  </style>
+  <title>Knowledge Dashboard</title>
+</head>
+<body>
+  <div id="app">
+    <nav class="sidebar" id="sidebar">
+      <div style="padding:20px 16px 24px;border-bottom:1px solid #334155">
+        <h1 style="font-size:18px;font-weight:700;color:#0ea5e9;letter-spacing:-.3px">Knowledge Dashboard</h1>
+        <p style="font-size:11px;color:#64748b;margin-top:2px">Personal Study Engine</p>
+      </div>
+      <div style="flex:1;padding:8px 0" id="nav-items">
+        <div class="nav-item active" data-view="dashboard" onclick="navigate('dashboard')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          <span>Dashboard</span>
+        </div>
+        <div class="nav-item" data-view="notes" onclick="navigate('notes')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span>Notes</span>
+        </div>
+        <div class="nav-item" data-view="todos" onclick="navigate('todos')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          <span>To-Dos</span>
+        </div>
+        <div class="nav-item" data-view="bookmarks" onclick="navigate('bookmarks')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+          <span>Bookmarks</span>
+        </div>
+        <div class="nav-item" data-view="search" onclick="navigate('search')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <span>Search</span>
+        </div>
+        <div class="nav-item" data-view="calculator" onclick="navigate('calculator')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <span>Calculator</span>
+        </div>
+        <div class="nav-item" data-view="study" onclick="navigate('study')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          <span>Study</span>
+        </div>
+      </div>
+      <div style="padding:12px 16px;border-top:1px solid #334155;font-size:11px;color:#475569">v2.0 &middot; Local-First</div>
+    </nav>
+
+    <div class="main">
+      <header style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:rgba(30,41,59,0.6);backdrop-filter:blur(12px);border-bottom:1px solid #334155">
+        <h2 style="font-size:16px;font-weight:600" id="view-title">Dashboard</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="connection-status" style="font-size:11px;padding:4px 10px;border-radius:20px;background:#1e293b;color:#64748b">connecting...</span>
+        </div>
+      </header>
+      <div class="content" id="view-content">
+        <div style="display:flex;align-items:center;justify-content:center;height:200px;color:#64748b">
+          <div style="text-align:center"><div class="spinner-dot"></div><div class="spinner-dot"></div><div class="spinner-dot"></div><p style="margin-top:12px;font-size:13px">Loading dashboard...</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Config ──────────────────────────────────────────────────────────
+    // When served through Cloudflare Pages, the FastAPI backend runs either
+    // locally or via Cloudflare Tunnel. In dev, point to localhost:8000.
+    const API_BASE = window.location.origin.includes('localhost') || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:8000'
+      : '';
+
+    // ── API Client ──────────────────────────────────────────────────────
+    async function api(path, opts = {}) {
+      const url = `${API_BASE}${path}`;
+      const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json', ...opts.headers },
+        ...opts,
+      });
+      if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+      const ct = res.headers.get('content-type') || '';
+      return ct.includes('application/json') ? res.json() : res.text();
+    }
+    const apiGet = (p) => api(p);
+    const apiPost = (p, d) => api(p, { method: 'POST', body: JSON.stringify(d) });
+    const apiPut = (p, d) => api(p, { method: 'PUT', body: JSON.stringify(d) });
+    const apiDel = (p) => api(p, { method: 'DELETE' });
+
+    // ── Router ──────────────────────────────────────────────────────────
+    let currentView = 'dashboard';
+    async function renderView(view) {
+      const container = document.getElementById('view-content');
+      container.innerHTML = loadingHTML('Loading...');
+      const fns = {
+        dashboard: renderDashboard,
+        notes: renderNotes,
+        todos: renderTodos,
+        bookmarks: renderBookmarks,
+        search: renderSearch,
+        calculator: renderCalculator,
+        study: renderStudy,
+      };
+      const fn = fns[view];
+      if (fn) await fn(container);
+    }
+    function navigate(view) {
+      currentView = view;
+      history.replaceState(null, '', '#' + view);
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+      document.getElementById('view-title').textContent = view.charAt(0).toUpperCase() + view.slice(1);
+      renderView(view);
+    }
+    window.addEventListener('hashchange', () => navigate(location.hash.slice(1) || 'dashboard'));
+
+    // ── Helpers ─────────────────────────────────────────────────────────
+    function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function timeAgo(iso) {
+      if (!iso) return '';
+      const ms = Date.now() - new Date(iso).getTime();
+      const m = Math.floor(ms / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h ago`;
+      const d = Math.floor(h / 24);
+      return d < 30 ? `${d}d ago` : new Date(iso).toLocaleDateString();
+    }
+
+    function loadingHTML(msg) {
+      return `<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#64748b"><div style="text-align:center"><div class="spinner-dot"></div><div class="spinner-dot"></div><div class="spinner-dot"></div><p style="margin-top:12px;font-size:13px">${msg}</p></div></div>`;
+    }
+    function errorHTML(msg) {
+      return `<div style="display:flex;align-items:center;justify-content:center;height:200px"><div style="text-align:center;color:#f87171"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 12px"><path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg><p style="font-size:14px;font-weight:500">${esc(msg)}</p><button onclick="navigate(currentView)" style="margin-top:12px;padding:6px 16px;border-radius:8px;border:1px solid #475569;background:transparent;color:#e2e8f0;cursor:pointer;font-size:12px">Retry</button></div></div>`;
+    }
+
+    // ── Connection Check ────────────────────────────────────────────────
+    async function checkConnection() {
+      const el = document.getElementById('connection-status');
+      try {
+        const start = performance.now();
+        await apiGet('/api/stats');
+        const ms = Math.round(performance.now() - start);
+        el.textContent = `online (${ms}ms)`;
+        el.style.color = '#34d399';
+        el.style.background = 'rgba(52,211,153,0.1)';
+      } catch {
+        el.textContent = 'offline — start the FastAPI server';
+        el.style.color = '#f87171';
+        el.style.background = 'rgba(248,113,113,0.1)';
+      }
+    }
+
+    // ── View: Dashboard ─────────────────────────────────────────────────
+    async function renderDashboard(container) {
+      const s = await apiGet('/api/stats');
+      container.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
+          <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:700;color:#0ea5e9">${s.notes}</div><div style="font-size:13px;color:#64748b;margin-top:4px">Notes</div></div>
+          <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:700;color:#34d399">${s.todos}</div><div style="font-size:13px;color:#64748b;margin-top:4px">To-Dos</div><div style="font-size:11px;color:#475569;margin-top:2px">${s.todos_done} done</div></div>
+          <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:700;color:#f59e0b">${s.bookmarks}</div><div style="font-size:13px;color:#64748b;margin-top:4px">Bookmarks</div></div>
+          <div class="card" style="text-align:center"><div style="font-size:28px;font-weight:700;color:#a78bfa">${s.notes + s.todos}</div><div style="font-size:13px;color:#64748b;margin-top:4px">Total Items</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card"><h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#e2e8f0">Recent Notes</h3><div id="recent-notes" style="font-size:13px;color:#64748b">Loading...</div></div>
+          <div class="card"><h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:#e2e8f0">Quick Stats</h3>
+            <div style="font-size:13px;color:#94a3b8;line-height:2">
+              <div>Completion rate: <span style="color:#34d399;font-weight:600">${s.todos > 0 ? Math.round(s.todos_done / s.todos * 100) : 0}%</span></div>
+              <div style="margin-top:8px;font-size:11px;color:#475569">Local-First. SQLite + ChromaDB + sentence-transformers. All data stays on your machine.</div>
+            </div>
+          </div>
+        </div>`;
+      try {
+        const notes = await apiGet('/api/notes');
+        const el = document.getElementById('recent-notes');
+        if (notes.length === 0) el.innerHTML = '<div style="color:#475569">No notes yet.</div>';
+        else el.innerHTML = notes.slice(0, 5).map(n => `<div style="padding:8px 0;border-bottom:1px solid #1e293b;cursor:pointer" onclick="navigate('notes')"><div style="font-weight:500;color:#e2e8f0">${esc(n.title || 'Untitled')}</div><div style="font-size:11px;color:#475569;margin-top:2px">${timeAgo(n.created_at)}</div></div>`).join('');
+      } catch { document.getElementById('recent-notes').innerHTML = '<div style="color:#f87171">Failed to load</div>'; }
+    }
+
+    // ── View: Notes ─────────────────────────────────────────────────────
+    async function renderNotes(container) {
+      container.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="font-size:15px;font-weight:600">All Notes</h3><button onclick="showNoteEditor()" style="padding:8px 16px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-size:13px;font-weight:500">+ New Note</button></div><div id="notes-list"></div>`;
+      const notes = await apiGet('/api/notes');
+      const list = document.getElementById('notes-list');
+      if (notes.length === 0) { list.innerHTML = '<div class="card" style="text-align:center;color:#64748b;padding:40px"><p>No notes yet.</p></div>'; return; }
+      list.innerHTML = notes.map(n => `
+        <div class="card" style="margin-bottom:8px;cursor:pointer" onclick="showNoteEditor('${n.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div><div style="font-weight:600;color:#e2e8f0">${esc(n.title || 'Untitled')}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:4px">${esc((n.content||'').slice(0,120))}${(n.content||'').length>120?'...':''}</div></div>
+            <button onclick="event.stopPropagation();deleteNote('${n.id}')" style="background:none;border:none;color:#64748b;cursor:pointer;padding:4px;font-size:16px">&times;</button>
+          </div>
+          <div style="font-size:11px;color:#475569;margin-top:6px">${timeAgo(n.updated_at)}</div>
+        </div>`).join('');
+    }
+
+    window.showNoteEditor = async function(id) {
+      const container = document.getElementById('view-content');
+      let title = '', content = '';
+      if (id) { try { const n = await apiGet('/api/notes/'+id); title=n.title; content=n.content; } catch {} }
+      container.innerHTML = `
+        <div style="max-width:700px">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button onclick="renderView('notes')" style="padding:6px 12px;border-radius:6px;border:1px solid #475569;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px">&larr; Back</button>
+            <button onclick="saveNote('${id||''}')" style="padding:6px 16px;border-radius:6px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-size:12px;font-weight:500">${id?'Update':'Create'}</button>
+            ${id?`<button onclick="deleteNote('${id}')" style="padding:6px 12px;border-radius:6px;border:1px solid #ef4444;background:transparent;color:#ef4444;cursor:pointer;font-size:12px">Delete</button>`:''}
+          </div>
+          <div class="card">
+            <input id="note-title" value="${esc(title)}" placeholder="Note title..." style="width:100%;background:transparent;border:none;outline:none;font-size:18px;font-weight:600;color:#e2e8f0;padding:8px 0;margin-bottom:8px">
+            <textarea id="note-content" rows="16" placeholder="Start writing..." style="width:100%;background:transparent;border:none;outline:none;color:#94a3b8;font-size:14px;line-height:1.7;resize:vertical;font-family:inherit">${esc(content)}</textarea>
+          </div>
+        </div>`;
+    };
+    window.saveNote = async function(id) {
+      const title = document.getElementById('note-title').value;
+      const content = document.getElementById('note-content').value;
+      if (id) await apiPut('/api/notes/'+id, {title,content});
+      else await apiPost('/api/notes', {title,content});
+      navigate('notes');
+    };
+    window.deleteNote = async function(id) {
+      if (!confirm('Delete this note?')) return;
+      await apiDel('/api/notes/'+id);
+      navigate('notes');
+    };
+
+    // ── View: To-Dos ────────────────────────────────────────────────────
+    async function renderTodos(container) {
+      container.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:16px"><input id="todo-input" placeholder="Add a new to-do..." style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')addTodo()"><button onclick="addTodo()" style="padding:10px 20px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Add</button></div>
+        <div id="todos-list"></div>`;
+      const todos = await apiGet('/api/todos');
+      const list = document.getElementById('todos-list');
+      if (todos.length === 0) { list.innerHTML = '<div class="card" style="text-align:center;color:#64748b;padding:40px"><p>Nothing to do!</p></div>'; return; }
+      const pc = {high:'#ef4444',medium:'#f59e0b',low:'#64748b'};
+      list.innerHTML = todos.map(t => `
+        <div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:6px;padding:12px 16px;${t.done?'opacity:0.5':''}">
+          <input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${t.id}',this.checked)" style="width:16px;height:16px;accent-color:#0ea5e9;cursor:pointer">
+          <div style="flex:1"><div style="font-size:14px;${t.done?'text-decoration:line-through;color:#64748b':'color:#e2e8f0'}">${esc(t.text)}</div></div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${pc[t.priority]||'#64748b'}22;color:${pc[t.priority]||'#64748b'};text-transform:uppercase;font-weight:600">${t.priority}</span>
+          <button onclick="deleteTodo('${t.id}')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px">&times;</button>
+        </div>`).join('');
+    }
+    window.addTodo = async function() {
+      const v = document.getElementById('todo-input').value.trim();
+      if (!v) return;
+      await apiPost('/api/todos', {text:v,done:false,priority:'medium'});
+      document.getElementById('todo-input').value='';
+      navigate('todos');
+    };
+    window.toggleTodo = async function(id,done) {
+      const todos = await apiGet('/api/todos');
+      const t = todos.find(x=>x.id===id);
+      if (t) await apiPut('/api/todos/'+id,{text:t.text,done,priority:t.priority});
+      navigate('todos');
+    };
+    window.deleteTodo = async function(id) {
+      await apiDel('/api/todos/'+id);
+      navigate('todos');
+    };
+
+    // ── View: Bookmarks ─────────────────────────────────────────────────
+    async function renderBookmarks(container) {
+      container.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:16px"><input id="bm-url" placeholder="URL (https://...)" style="flex:2;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px;outline:none"><input id="bm-title" placeholder="Title" style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px;outline:none"><button onclick="addBookmark()" style="padding:10px 20px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Add</button></div>
+        <div id="bookmarks-list"></div>`;
+      const bms = await apiGet('/api/bookmarks');
+      const list = document.getElementById('bookmarks-list');
+      if (bms.length === 0) { list.innerHTML = '<div class="card" style="text-align:center;color:#64748b;padding:40px"><p>No bookmarks yet.</p></div>'; return; }
+      list.innerHTML = bms.map(b => `
+        <div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:6px;padding:12px 16px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+          <div style="flex:1;min-width:0">
+            <a href="${esc(b.url)}" target="_blank" style="font-size:14px;font-weight:500;color:#0ea5e9;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block">${esc(b.title||b.url)}</a>
+            ${b.description?`<div style="font-size:12px;color:#64748b;margin-top:2px">${esc(b.description)}</div>`:''}
+            <div style="font-size:11px;color:#475569;margin-top:2px">${esc(b.url)}</div>
+          </div>
+          <button onclick="deleteBookmark('${b.id}')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:16px">&times;</button>
+        </div>`).join('');
+    }
+    window.addBookmark = async function() {
+      const url = document.getElementById('bm-url').value.trim();
+      const title = document.getElementById('bm-title').value.trim();
+      if (!url) return;
+      await apiPost('/api/bookmarks',{url,title,description:''});
+      document.getElementById('bm-url').value=''; document.getElementById('bm-title').value='';
+      navigate('bookmarks');
+    };
+    window.deleteBookmark = async function(id) {
+      await apiDel('/api/bookmarks/'+id);
+      navigate('bookmarks');
+    };
+
+    // ── View: Search ────────────────────────────────────────────────────
+    function renderSearch(container) {
+      container.innerHTML = `
+        <div style="margin-bottom:16px">
+          <div style="display:flex;gap:8px"><input id="search-input" placeholder="Search notes by meaning (e.g. 'machine learning concepts')..." style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doSearch()"><button onclick="doSearch()" style="padding:10px 20px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Search</button></div>
+          <p style="font-size:11px;color:#475569;margin-top:6px">Semantic search via ChromaDB + sentence-transformers (all-MiniLM-L6-v2). Runs locally.</p>
+        </div>
+        <div id="search-results"></div>`;
+      setTimeout(()=>document.getElementById('search-input')?.focus(),100);
+    }
+    window.doSearch = async function() {
+      const q = document.getElementById('search-input').value.trim();
+      if (!q) return;
+      const rd = document.getElementById('search-results');
+      rd.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:13px"><div class="spinner-dot"></div><div class="spinner-dot"></div><div class="spinner-dot"></div> Searching...</div>';
+      try {
+        const r = await apiGet('/api/search?q='+encodeURIComponent(q));
+        if (r.length===0) { rd.innerHTML = '<div class="card" style="text-align:center;color:#64748b;padding:40px"><p>No results found.</p></div>'; return; }
+        rd.innerHTML = r.map(x => `<div class="card" style="margin-bottom:8px;cursor:pointer" onclick="showNoteEditor('${x.id}')"><div style="display:flex;justify-content:space-between;align-items:start"><div style="font-weight:600;color:#e2e8f0">${esc(x.title||'Untitled')}</div><span style="font-size:10px;color:#64748b;background:#334155;padding:2px 8px;border-radius:10px">${(x.score||0).toFixed(4)}</span></div><div style="font-size:12px;color:#94a3b8;margin-top:4px">${esc((x.content||'').slice(0,200))}</div></div>`).join('');
+      } catch(e) { rd.innerHTML = `<div style="color:#f87171;font-size:13px">Search failed: ${esc(e.message)}</div>`; }
+    };
+
+    // ── View: Calculator (Desmos Graphing) ──────────────────────────────
+    const DESMOS_API_KEY = 'be0bcf07e4ba480f8fb2b9a237b75df4';
+    let _desmosCalc = null;
+    let _desmosLoaded = false;
+
+    function renderCalculator(container) {
+      container.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button onclick="resetCalc()" class="calc-preset">Blank</button>
+          <span style="color:#475569;font-size:11px">Presets:</span>
+          <button onclick="loadPreset('quadratic')" class="calc-preset">Quadratic</button>
+          <button onclick="loadPreset('sine')" class="calc-preset">Sine</button>
+          <button onclick="loadPreset('cosine')" class="calc-preset">Cosine</button>
+          <button onclick="loadPreset('cubic')" class="calc-preset">Cubic</button>
+          <button onclick="loadPreset('unitcircle')" class="calc-preset">Unit Circle</button>
+          <button onclick="loadPreset('exponential')" class="calc-preset">Exponential</button>
+          <button onclick="loadPreset('logarithm')" class="calc-preset">Logarithm</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <span style="color:#475569;font-size:11px">Multi:</span>
+          <button onclick="loadMulti('family')" class="calc-preset">Function Family</button>
+          <button onclick="loadMulti('trig')" class="calc-preset">Trig Waveforms</button>
+          <button onclick="loadMulti('intersect')" class="calc-preset">Intersections</button>
+          <button onclick="exportCalcPng()" style="margin-left:auto;padding:6px 12px;border-radius:6px;border:1px solid #0ea5e9;background:transparent;color:#0ea5e9;cursor:pointer;font-size:12px">Export PNG</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button onclick="loadPreset('squareroot')" class="calc-preset">Square Root</button>
+          <button onclick="loadPreset('absvalue')" class="calc-preset">Absolute Value</button>
+          <button onclick="loadPreset('sinc')" class="calc-preset">Sinc</button>
+          <button onclick="loadPreset('derivative')" class="calc-preset">Derivative</button>
+          <button onclick="loadPreset('integral')" class="calc-preset">Definite Integral</button>
+          <button onclick="loadPreset('trigid')" class="calc-preset">Trig Identity</button>
+          <button onclick="loadPreset('tangent')" class="calc-preset">Tangent</button>
+          <button onclick="loadPreset('naturallog')" class="calc-preset">Natural Log</button>
+          <button onclick="loadPreset('gaussian')" class="calc-preset">Gaussian</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button onclick="loadPreset('step')" class="calc-preset">Step Function</button>
+          <button onclick="loadPreset('rational')" class="calc-preset">Rational</button>
+          <button onclick="loadPreset('parametric')" class="calc-preset">Parametric</button>
+          <button onclick="loadPreset('polarrose')" class="calc-preset">Polar Rose</button>
+          <button onclick="loadPreset('slider')" class="calc-preset">Slider Demo</button>
+          <button onclick="loadPreset('bezier')" class="calc-preset">Bezier Curve</button>
+          <button onclick="loadPreset('hyperbola')" class="calc-preset">Hyperbola</button>
+        </div>
+        <div id="calc-container" style="height:500px;border-radius:12px;overflow:hidden;background:#1e293b;border:1px solid #334155;position:relative">
+          <div id="calc-loading" style="display:flex;align-items:center;justify-content:center;height:100%">
+            <div style="text-align:center"><div class="spinner-dot"></div><div class="spinner-dot"></div><div class="spinner-dot"></div><p style="margin-top:12px;font-size:13px;color:#64748b">Loading Desmos Calculator...</p></div>
+          </div>
+        </div>`;
+      loadDesmos();
+    }
+
+    function loadDesmos() {
+      if (_desmosLoaded) return;
+      if (window.Desmos) { _desmosLoaded = true; initCalc(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://www.desmos.com/api/v1.12/calculator.js?apiKey=' + DESMOS_API_KEY;
+      s.onload = () => { _desmosLoaded = true; initCalc(); };
+      s.onerror = () => {
+        document.getElementById('calc-loading').innerHTML = '<div style="text-align:center;color:#f87171"><p style="font-size:14px;font-weight:500">Failed to load Desmos. Check your connection.</p><button onclick="loadDesmos()" style="margin-top:12px;padding:6px 16px;border-radius:8px;border:1px solid #475569;background:transparent;color:#e2e8f0;cursor:pointer;font-size:12px">Retry</button></div>';
+      };
+      document.head.appendChild(s);
+    }
+
+    function initCalc() {
+      const el = document.getElementById('calc-container');
+      if (!el) return;
+      if (_desmosCalc) { _desmosCalc.destroy(); }
+      _desmosCalc = window.Desmos.GraphingCalculator(el, {
+        expressions: true, settingsMenu: true, zoomButtons: true,
+        keypad: true, projectorMode: false, trace: true,
+        border: false, lockViewport: false,
+      });
+      document.getElementById('calc-loading').style.display = 'none';
+    }
+
+    const CALC_PRESETS = {
+      quadratic: { latex: 'y=x^2' },
+      sine: { latex: 'y=\\sin(x)' },
+      cosine: { latex: 'y=\\cos(x)' },
+      cubic: { latex: 'y=x^3' },
+      unitcircle: { latex: 'x^2+y^2=1' },
+      exponential: { latex: 'y=2^x' },
+      logarithm: { latex: 'y=\\log_{10}(x)' },
+      hyperbola: { latex: '\\frac{x^2}{4}-\\frac{y^2}{9}=1' },
+      squareroot: { latex: 'y=\\sqrt{x}' },
+      absvalue: { latex: 'y=|x|' },
+      sinc: { latex: 'y=\\frac{\\sin(x)}{x}' },
+      derivative: { latex: '\\frac{d}{dx}x^2=2x' },
+      integral: { latex: '\\int_{0}^{\\pi}\\sin(x)dx' },
+      trigid: { latex: '\\sin^2(x)+\\cos^2(x)=1' },
+      tangent: { latex: 'y=\\tan(x)' },
+      naturallog: { latex: 'y=\\ln(x)' },
+      gaussian: { latex: 'y=e^{-x^2}' },
+      step: { latex: 'y=\\operatorname{floor}(x)' },
+      rational: { latex: 'y=\\frac{1}{x}' },
+      parametric: { latex: '(\\cos(t),\\sin(t))' },
+      polarrose: { latex: 'r=\\cos(3\\theta)' },
+      slider: { latex: 'y=a\\sin(x)' },
+      bezier: { latex: 'y=x^2-2x+1' },
+    };
+
+    window.loadPreset = function(name) {
+      if (!_desmosCalc) return;
+      const p = CALC_PRESETS[name];
+      if (!p) return;
+      _desmosCalc.setBlank();
+      _desmosCalc.setExpression({ id: 'preset', latex: p.latex });
+    };
+
+    window.loadMulti = function(name) {
+      if (!_desmosCalc) return;
+      const sets = {
+        family: [
+          { latex: 'y=x^2', color: '#0ea5e9' },
+          { latex: 'y=2x^2', color: '#34d399' },
+          { latex: 'y=0.5x^2', color: '#f59e0b' },
+          { latex: 'y=-x^2', color: '#ef4444' },
+          { latex: 'y=-(x-3)^2+4', color: '#a78bfa' },
+        ],
+        trig: [
+          { latex: 'y=\\sin(x)', color: '#0ea5e9' },
+          { latex: 'y=\\cos(x)', color: '#34d399' },
+          { latex: 'y=\\sin(2x)', color: '#f59e0b' },
+          { latex: 'y=\\sin(x)+\\cos(x)', color: '#ef4444' },
+        ],
+        intersect: [
+          { latex: 'y=x^2', color: '#0ea5e9' },
+          { latex: 'y=2x+3', color: '#ef4444' },
+        ],
+      };
+      const exprs = sets[name];
+      if (!exprs) return;
+      _desmosCalc.setBlank();
+      _desmosCalc.setExpressions(exprs);
+    };
+
+    window.resetCalc = function() {
+      if (_desmosCalc) _desmosCalc.setBlank();
+    };
+
+    window.exportCalcPng = function() {
+      if (!_desmosCalc) return;
+      const img = _desmosCalc.getScreenshot();
+      const a = document.createElement('a');
+      a.href = img;
+      a.download = 'desmos-graph.png';
+      a.click();
+    };
+
+    // ── View: Study (AI Notesheets & Quizzes) ──────────────────────────
+    let _studyTab = 'notesheet';
+    let _quizQuestions = null;
+    let _quizAnswers = {};
+
+    function renderStudy(container) {
+      container.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button id="stab-notesheet" class="study-tab active" onclick="switchStudyTab('notesheet')">Notesheet</button>
+          <button id="stab-quiz" class="study-tab" onclick="switchStudyTab('quiz')">Quiz</button>
+        </div>
+        <div id="study-content"></div>`;
+      renderStudyTab();
+    }
+
+    window.switchStudyTab = function(tab) {
+      _studyTab = tab;
+      document.querySelectorAll('.study-tab').forEach(el => el.classList.toggle('active', el.id === 'stab-' + tab));
+      renderStudyTab();
+    };
+
+    function renderStudyTab() {
+      const el = document.getElementById('study-content');
+      if (!el) return;
+      setTimeout(initDropZone, 50); // init drag-drop after DOM update
+      if (_studyTab === 'notesheet') {
+        el.innerHTML = `
+          <div class="card" style="margin-bottom:16px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px;color:#e2e8f0">Generate Study Notes</div>
+            <input id="ns-topic" value="${esc(document.getElementById('ns-topic')?.value || '')}" placeholder="Topic (e.g. 'Quadratic Equations')" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:14px;outline:none;margin-bottom:8px">
+
+            <div style="margin-bottom:8px">
+              <div style="font-size:12px;color:#64748b;margin-bottom:6px">Drop a PDF or paste source text:</div>
+              <div id="ns-dropzone" class="drop-zone" onclick="document.getElementById('ns-pdf').click()">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5" style="margin-bottom:8px"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <div style="font-size:13px;color:#94a3b8" id="ns-drop-label">Drop PDF here or click to browse</div>
+                <div style="font-size:11px;color:#475569;margin-top:4px" id="ns-drop-file"></div>
+              </div>
+              <input id="ns-pdf" type="file" accept=".pdf,application/pdf" style="display:none" onchange="handlePDFSelect(event)">
+            </div>
+
+            <textarea id="ns-source" rows="2" placeholder="Or paste source text here (used if no PDF is selected)..." style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:13px;outline:none;resize:vertical;font-family:inherit;margin-bottom:8px">${esc(document.getElementById('ns-source')?.value || '')}</textarea>
+
+            <button onclick="generateNotesheet()" style="padding:10px 20px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Generate Notesheet</button>
+            <span id="ns-status" style="margin-left:12px;font-size:12px;color:#64748b"></span>
+          </div>
+
+          <div id="ns-progress" style="display:none;margin-bottom:16px" class="card">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:#94a3b8;margin-bottom:8px">
+              <span id="ns-prog-msg">Processing...</span>
+              <span id="ns-prog-pct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div id="ns-prog-bar" class="progress-fill" style="width:0%"></div>
+            </div>
+            <div style="margin-top:6px;font-size:11px;color:#475569" id="ns-prog-stage">Starting…</div>
+          </div>
+
+          <div id="ns-result"></div>`;
+      } else {
+        el.innerHTML = `
+          <div class="card" style="margin-bottom:16px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px;color:#e2e8f0">Generate Quiz</div>
+            <input id="qz-topic" value="${esc(document.getElementById('qz-topic')?.value || '')}" placeholder="Topic (e.g. 'Linear Equations')" style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:14px;outline:none;margin-bottom:8px">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+              <label style="font-size:12px;color:#94a3b8">Number of questions:</label>
+              <select id="qz-count" style="padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px;outline:none">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+            <button onclick="generateQuiz()" style="padding:10px 20px;border-radius:8px;border:none;background:#f59e0b;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Generate Quiz</button>
+            <span id="qz-status" style="margin-left:12px;font-size:12px;color:#64748b"></span>
+          </div>
+          <div id="qz-result"></div>
+          <div id="qz-score" style="display:none" class="card"></div>`;
+      }
+    }
+
+    window.generateNotesheet = async function() {
+      const topic = document.getElementById('ns-topic').value.trim();
+      const source = document.getElementById('ns-source').value.trim();
+      const pdfFile = window._nsPDFFile;
+
+      // If a PDF is selected, use the streaming upload path
+      if (pdfFile) {
+        return uploadPDFNotesheet(pdfFile, topic || pdfFile.name.replace(/\.pdf$/i, ''));
+      }
+
+      // Otherwise fall back to text-paste flow
+      if (!topic && !source) { document.getElementById('ns-status').textContent = 'Enter a topic or drop a PDF'; return; }
+      const status = document.getElementById('ns-status');
+      const result = document.getElementById('ns-result');
+      status.textContent = 'Generating notesheet...';
+      result.innerHTML = loadingHTML('AI is creating study notes...');
+      try {
+        const r = await apiPost('/api/ai/notesheet', { topic, source_text: source });
+        status.textContent = '✓ Saved to Notes!';
+        status.style.color = '#34d399';
+        result.innerHTML = '<div class="card" style="white-space:pre-wrap;font-size:13px;color:#94a3b8;line-height:1.7">' + esc(r.content) + '</div>';
+      } catch(e) {
+        status.textContent = 'Failed: ' + e.message;
+        status.style.color = '#f87171';
+        result.innerHTML = errorHTML(e.message);
+      }
+    };
+
+    // ── PDF Drag-Drop & Upload ──────────────────────────────────────────
+    window._nsPDFFile = null;
+
+    function initDropZone() {
+      const dz = document.getElementById('ns-dropzone');
+      if (!dz) return;
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+      dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('drag-over');
+        const f = e.dataTransfer.files[0];
+        if (f && f.type === 'application/pdf') {
+          window._nsPDFFile = f;
+          document.getElementById('ns-drop-label').textContent = 'PDF selected';
+          document.getElementById('ns-drop-label').style.color = '#34d399';
+          document.getElementById('ns-drop-file').textContent = f.name + ' (' + Math.round(f.size / 1024) + ' KB)';
+          dz.classList.add('has-file');
+        } else {
+          document.getElementById('ns-drop-label').textContent = 'Please drop a PDF file';
+          document.getElementById('ns-drop-label').style.color = '#f87171';
+        }
+      });
+    }
+
+    window.handlePDFSelect = function(e) {
+      const f = e.target.files[0];
+      if (!f) return;
+      window._nsPDFFile = f;
+      const dz = document.getElementById('ns-dropzone');
+      document.getElementById('ns-drop-label').textContent = 'PDF selected';
+      document.getElementById('ns-drop-label').style.color = '#34d399';
+      document.getElementById('ns-drop-file').textContent = f.name + ' (' + Math.round(f.size / 1024) + ' KB)';
+      if (dz) dz.classList.add('has-file');
+    };
+
+    function showProgress(pct, msg, stage) {
+      const box = document.getElementById('ns-progress');
+      if (box) box.style.display = 'block';
+      const bar = document.getElementById('ns-prog-bar');
+      if (bar) bar.style.width = Math.min(pct, 100) + '%';
+      const pctEl = document.getElementById('ns-prog-pct');
+      if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+      const msgEl = document.getElementById('ns-prog-msg');
+      if (msgEl) msgEl.textContent = msg;
+      const stageEl = document.getElementById('ns-prog-stage');
+      if (stageEl) stageEl.textContent = stage || '';
+    }
+
+    async function uploadPDFNotesheet(file, topic) {
+      const status = document.getElementById('ns-status');
+      const result = document.getElementById('ns-result');
+      status.textContent = '';
+      result.innerHTML = '';
+      showProgress(2, 'Uploading...', 'Starting');
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('topic', topic);
+
+      try {
+        const response = await fetch(API_BASE + '/api/ai/pdf-notesheet/stream', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) throw new Error(await response.text());
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let noteData = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              showProgress(data.progress, data.message, data.stage);
+
+              if (data.stage === 'done') {
+                noteData = data.note;
+              }
+            } catch(e) {}
+          }
+        }
+
+        if (noteData) {
+          showProgress(100, 'Complete!', '');
+          status.textContent = '✓ Saved to Notes!';
+          status.style.color = '#34d399';
+          result.innerHTML = '<div class="card" style="white-space:pre-wrap;font-size:13px;color:#94a3b8;line-height:1.7">' + esc(noteData.content) + '</div>';
+          // Clear PDF selection
+          window._nsPDFFile = null;
+          document.getElementById('ns-pdf').value = '';
+          const dz = document.getElementById('ns-dropzone');
+          if (dz) {
+            dz.classList.remove('has-file');
+            document.getElementById('ns-drop-label').textContent = 'Drop PDF here or click to browse';
+            document.getElementById('ns-drop-label').style.color = '#94a3b8';
+            document.getElementById('ns-drop-file').textContent = '';
+          }
+          // Scroll to result
+          result.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          throw new Error('No result received');
+        }
+      } catch(e) {
+        showProgress(0, 'Failed', 'Error');
+        status.textContent = 'Failed: ' + e.message;
+        status.style.color = '#f87171';
+        result.innerHTML = errorHTML(e.message);
+      }
+    }
+
+    window.generateQuiz = async function() {
+      const topic = document.getElementById('qz-topic').value.trim();
+      const count = parseInt(document.getElementById('qz-count').value) || 5;
+      if (!topic) { document.getElementById('qz-status').textContent = 'Please enter a topic'; return; }
+      const status = document.getElementById('qz-status');
+      const result = document.getElementById('qz-result');
+      status.textContent = 'Generating quiz...';
+      result.innerHTML = loadingHTML('AI is creating questions...');
+      document.getElementById('qz-score').style.display = 'none';
+      try {
+        const r = await apiPost('/api/ai/quiz/generate', { topic, num_questions: count });
+        _quizQuestions = r.questions;
+        _quizAnswers = {};
+        status.textContent = '✓ Quiz ready!';
+        status.style.color = '#f59e0b';
+        let html = '<div style="display:flex;gap:8px;margin-bottom:12px"><button onclick="submitQuiz()" style="padding:10px 20px;border-radius:8px;border:none;background:#34d399;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Submit Answers</button><button onclick="generateQuiz()" style="padding:10px 20px;border-radius:8px;border:1px solid #475569;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px">Regenerate</button></div>';
+        r.questions.forEach((q, i) => {
+          html += `<div class="card" style="margin-bottom:10px;padding:16px"><div style="font-size:13px;font-weight:500;color:#e2e8f0;margin-bottom:8px">Q${i+1}. ${esc(q.question)}`;
+          if (q.type === 'mc' && q.choices) {
+            q.choices.forEach(c => {
+              const letter = c.charAt(0);
+              html += `<label style="display:block;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid #334155;cursor:pointer;font-size:13px;color:#94a3b8"><input type="radio" name="quiz-${i}" value="${letter}" onchange="quizAnswer(${i},'${letter}')" style="margin-right:8px">${esc(c)}</label>`;
+            });
+          } else {
+            html += `<input id="qfib-${i}" placeholder="Type your answer..." onchange="quizAnswer(${i}, this.value)" style="display:block;width:100%;margin-top:6px;padding:8px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px;outline:none">`;
+          }
+          html += '</div></div>';
+        });
+        result.innerHTML = html;
+      } catch(e) {
+        status.textContent = 'Failed: ' + e.message;
+        status.style.color = '#f87171';
+        result.innerHTML = errorHTML(e.message);
+      }
+    };
+
+    window.quizAnswer = function(idx, val) {
+      _quizAnswers[idx] = val;
+    };
+
+    window.submitQuiz = function() {
+      if (!_quizQuestions || _quizQuestions.length === 0) return;
+      let correct = 0;
+      const total = _quizQuestions.length;
+      let html = '';
+      _quizQuestions.forEach((q, i) => {
+        const userAns = _quizAnswers[i] || '(no answer)';
+        const correctAns = q.answer || q.display_answer || '';
+        const isCorrect = userAns.toUpperCase() === correctAns.toUpperCase() ||
+          (q.acceptable && q.acceptable.some(a => a.toLowerCase() === userAns.toLowerCase()));
+        if (isCorrect) correct++;
+        const icon = isCorrect ? '✓' : '✗';
+        const color = isCorrect ? '#34d399' : '#f87171';
+        html += `<div style="font-size:13px;padding:6px 0;border-bottom:1px solid #1e293b"><span style="color:${color};font-weight:600">${icon}</span> Q${i+1}: <span style="color:#94a3b8">You answered: ${esc(userAns)}</span> <span style="color:${color}">(correct: ${esc(correctAns)})</span></div>`;
+      });
+      const pct = Math.round(correct / total * 100);
+      const grade = pct >= 80 ? '#34d399' : pct >= 50 ? '#f59e0b' : '#f87171';
+      document.getElementById('qz-score').style.display = 'block';
+      document.getElementById('qz-score').innerHTML = `
+        <div style="text-align:center;padding:16px">
+          <div style="font-size:36px;font-weight:700;color:${grade}">${correct}/${total}</div>
+          <div style="font-size:14px;color:#94a3b8;margin-top:4px">${pct}% correct</div>
+          <div style="margin-top:12px">${html}</div>
+          <button onclick="generateQuiz()" style="margin-top:12px;padding:10px 20px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Try Another Quiz</button>
+        </div>`;
+      // Scroll to score
+      document.getElementById('qz-score').scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // ── Init ────────────────────────────────────────────────────────────
+    navigate(location.hash.slice(1) || 'dashboard');
+    checkConnection();
+    setInterval(checkConnection, 30000);
+  </script>
+</body>
+</html>

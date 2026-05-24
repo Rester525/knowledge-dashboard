@@ -34,7 +34,7 @@ export function NotesList({ notes, onRefresh }: { notes: Note[]; onRefresh: () =
   if (notes.length === 0) {
     return (
       <div className="glass-card p-5 text-center">
-        <p className="text-sm text-[#6b6b7b]">No notes yet. Create one above.</p>
+        <p className="text-sm text-slate-500">No notes yet. Create one above.</p>
       </div>
     );
   }
@@ -43,9 +43,9 @@ export function NotesList({ notes, onRefresh }: { notes: Note[]; onRefresh: () =
     <div className="space-y-3">
       {notes.map((n) => (
         <div key={n.id} className="glass-card p-4 group relative">
-          <p className="text-sm text-[#e1e1e9] whitespace-pre-wrap">{n.content}</p>
+          <p className="text-sm text-slate-900 whitespace-pre-wrap">{n.content}</p>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-[#6b6b7b]">{timeAgo(n.created_at)}</span>
+            <span className="text-xs text-slate-500">{timeAgo(n.created_at)}</span>
             <button
               className="btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={() => deleteNote(n.id)}

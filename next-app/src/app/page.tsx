@@ -4,35 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { Header } from "@/components/Header";
-import { NewNote } from "@/components/NewNote";
-import { NewTodo } from "@/components/NewTodo";
-import { NewBookmark } from "@/components/NewBookmark";
-import { SearchBar } from "@/components/SearchBar";
-import { NotesList } from "@/components/NotesList";
-import { TodosList } from "@/components/TodosList";
-import { BookmarksList } from "@/components/BookmarksList";
-import { ToastContainer } from "@/components/Toast";
+import { Sidebar } from "@/components/Sidebar";
+import { BookmarkBar } from "@/components/BookmarkBar";
+import { TasksTab } from "@/components/TasksTab";
+import { NotesTab } from "@/components/NotesTab";
+import { StudyPanel } from "@/components/StudyPanel";
+import { ToastContainer, showToast } from "@/components/Toast";
 
 export default function Home() {
   const { user, loading } = useAuth();
-
-  const [notes, setNotes] = useState([]);
-  const [todos, setTodos] = useState([]);
+  const [activeTab, setActiveTab] = useState("tasks");
   const [bookmarks, setBookmarks] = useState([]);
-
-  const fetchNotes = useCallback(() => {
-    fetch("/api/notes")
-      .then((r) => r.json())
-      .then(setNotes)
-      .catch(() => {});
-  }, []);
-
-  const fetchTodos = useCallback(() => {
-    fetch("/api/todos")
-      .then((r) => r.json())
-      .then(setTodos)
-      .catch(() => {});
-  }, []);
 
   const fetchBookmarks = useCallback(() => {
     fetch("/api/bookmarks")
@@ -42,23 +24,29 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      fetchNotes();
-      fetchTodos();
-      fetchBookmarks();
-    }
-  }, [user, fetchNotes, fetchTodos, fetchBookmarks]);
+    if (user) fetchBookmarks();
+  }, [user, fetchBookmarks]);
 
-  const refreshAll = useCallback(() => {
-    fetchNotes();
-    fetchTodos();
-    fetchBookmarks();
-  }, [fetchNotes, fetchTodos, fetchBookmarks]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gmail = params.get("gmail");
+    if (gmail === "connected") {
+      showToast("Gmail account connected successfully", "success");
+      window.history.replaceState({}, "", "/");
+    } else if (gmail === "error") {
+      const msg = params.get("msg");
+      showToast(
+        msg ? decodeURIComponent(msg) : "Failed to connect Gmail account",
+        "error"
+      );
+      window.history.replaceState({}, "", "/");
+    }
+  }, []);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[#818cf8] border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -73,37 +61,22 @@ export default function Home() {
   }
 
   return (
-    <div className="relative z-10">
-      <Header />
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        bookmarks={bookmarks}
+        onBookmarksRefresh={fetchBookmarks}
+      />
 
-      <div className="bento-grid">
-        {/* Left column — capture */}
-        <div className="space-y-4">
-          <NewNote onCreated={refreshAll} />
-          <NewTodo onCreated={refreshAll} />
-          <NewBookmark onCreated={refreshAll} />
-        </div>
-
-        {/* Middle column — search + notes */}
-        <div className="space-y-4">
-          <SearchBar />
-          <div>
-            <h3 className="text-[#e1e1e9] font-semibold mb-3 text-sm uppercase tracking-wider px-1">Recent Notes</h3>
-            <NotesList notes={notes} onRefresh={refreshAll} />
-          </div>
-        </div>
-
-        {/* Right column — todos + bookmarks */}
-        <div className="space-y-6">
-          <div className="glass-card p-5">
-            <h3 className="text-[#e1e1e9] font-semibold mb-3 text-sm uppercase tracking-wider">To-dos</h3>
-            <TodosList todos={todos} onRefresh={refreshAll} />
-          </div>
-          <div className="glass-card p-5">
-            <h3 className="text-[#e1e1e9] font-semibold mb-3 text-sm uppercase tracking-wider">Bookmarks</h3>
-            <BookmarksList bookmarks={bookmarks} onRefresh={refreshAll} />
-          </div>
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <BookmarkBar onCreated={fetchBookmarks} />
+        <main className="flex-1 overflow-y-auto p-6">
+          {activeTab === "tasks" && <TasksTab />}
+          {activeTab === "study" && <StudyPanel />}
+          {activeTab === "notes" && <NotesTab />}
+        </main>
       </div>
 
       <ToastContainer />

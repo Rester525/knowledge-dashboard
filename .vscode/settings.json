@@ -1,0 +1,54 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.next": true,
+    "**/node_modules": true,
+    "**/dist": true
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/fastapi-app/.venv/bin/python",
+  "python.analysis.typeCheckingMode": "basic",
+  "[python]": {
+    "editor.tabSize": 4,
+    "editor.defaultFormatter": "ms-python.python"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "tailwindCSS.includeLanguages": {
+    "html": "html",
+    "javascript": "javascript"
+  },
+  "tailwindCSS.experimental.classRegex": [],
+  "sqltools.connections": [
+    {
+      "name": "Supabase (knowledge-dashboard)",
+      "driver": "PostgreSQL",
+      "server": "aws-0-us-west-1.pooler.supabase.com",
+      "port": 6543,
+      "database": "postgres",
+      "username": "iwkbuurltlnaszptrgth",
+      "askForPassword": true
+    }
+  ],
+  "thunder-client.saveToWorkspace": true,
+  "gitlens.codeLens.enabled": false,
+  "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+  "workbench.iconTheme": "material-icon-theme",
+  "files.associations": {
+    "*.mjs": "javascript"
+  }
+}

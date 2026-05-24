@@ -13,7 +13,7 @@ function getSql() {
   return _sql;
 }
 
-// Tagged template literal proxy — defers neon() init until first call
+// Tagged template helper — defers neon() init until first call
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sql(strings: TemplateStringsArray, ...values: any[]): Promise<Record<string, unknown>[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

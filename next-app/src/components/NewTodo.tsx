@@ -33,7 +33,7 @@ export function NewTodo({ onCreated }: { onCreated: () => void }) {
 
   return (
     <div className="glass-card p-5">
-      <h3 className="text-[#e1e1e9] font-semibold mb-3 text-sm uppercase tracking-wider">New To-do</h3>
+      <h3 className="text-slate-900 font-semibold mb-3 text-sm uppercase tracking-wider">New To-do</h3>
       <div className="flex gap-2">
         <input
           className="glass-input text-sm flex-1"

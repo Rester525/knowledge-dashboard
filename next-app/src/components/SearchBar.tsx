@@ -10,9 +10,7 @@ interface SearchResult {
 }
 
 function scoreBadge(score: number) {
-  if (score >= 0.6) return <span className="score-badge-high">{Math.round(score * 100)}%</span>;
-  if (score >= 0.3) return <span className="score-badge-mid">{Math.round(score * 100)}%</span>;
-  return <span className="score-badge-low">{Math.round(score * 100)}%</span>;
+  return <span className="score-badge">{Math.round(score * 100)}%</span>;
 }
 
 function timeAgo(dateStr: string) {
@@ -53,7 +51,7 @@ export function SearchBar() {
 
   return (
     <div className="glass-card p-5">
-      <h3 className="text-[#e1e1e9] font-semibold mb-3 text-sm uppercase tracking-wider">Search Notes</h3>
+      <h3 className="text-slate-900 font-semibold mb-3 text-sm uppercase tracking-wider">Search Notes</h3>
       <div className="flex gap-2">
         <input
           className="glass-input text-sm flex-1"
@@ -68,23 +66,23 @@ export function SearchBar() {
       </div>
 
       {loading && (
-        <p className="text-sm text-[#6b6b7b] mt-4">Searching...</p>
+        <p className="text-sm text-slate-500 mt-4">Searching...</p>
       )}
 
       {!loading && searched && results.length === 0 && (
-        <p className="text-sm text-[#6b6b7b] mt-4">No results found.</p>
+        <p className="text-sm text-slate-500 mt-4">No results found.</p>
       )}
 
       {results.length > 0 && (
         <div className="mt-4 space-y-3 max-h-[400px] overflow-y-auto">
-          <p className="text-xs text-[#6b6b7b]">{results.length} result{results.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-slate-500">{results.length} result{results.length !== 1 ? "s" : ""}</p>
           {results.map((r) => (
-            <div key={r.id} className="border border-[#252530] rounded-xl p-3 bg-[#12121a]/50">
+            <div key={r.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-[#6b6b7b]">{timeAgo(r.created_at)}</span>
+                <span className="text-xs text-slate-500">{timeAgo(r.created_at)}</span>
                 {scoreBadge(r.score)}
               </div>
-              <p className="text-sm text-[#e1e1e9] line-clamp-3">{r.content}</p>
+              <p className="text-sm text-slate-900 line-clamp-3">{r.content}</p>
             </div>
           ))}
         </div>

@@ -1,8 +1,12 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
+DROP TABLE IF EXISTS quizzes;
+DROP TABLE IF EXISTS study_materials;
 DROP TABLE IF EXISTS notes;
 DROP TABLE IF EXISTS todos;
 DROP TABLE IF EXISTS bookmarks;
+DROP TABLE IF EXISTS gmail_accounts;
+DROP TABLE IF EXISTS email_scans;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
@@ -33,5 +37,39 @@ CREATE TABLE bookmarks (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     url VARCHAR(2048) NOT NULL,
     title VARCHAR(500) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE email_scans (
+    message_id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE gmail_accounts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    refresh_token TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, email)
+);
+
+CREATE TABLE study_materials (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    source_type VARCHAR(20) NOT NULL CHECK (source_type IN ('pdf', 'youtube')),
+    source_url TEXT,
+    raw_text TEXT NOT NULL,
+    notesheet TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE quizzes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    material_id INTEGER NOT NULL REFERENCES study_materials(id) ON DELETE CASCADE,
+    questions JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -6,25 +6,26 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 
 ## Architecture
 
-- **Single file SPA**: `spain-czechrepublic-2016.com/index.html` (~2100 lines) — inline CSS + JS, no framework
+- **Single file SPA**: `index.html` at repo root (~2250 lines) — inline CSS + JS, no framework. Mirrored in `spain-czechrepublic-2016.com/index.html`
 - **Tailwind CSS** via CDN (`cdn.tailwindcss.com`) for utility classes
 - **IndexedDB** (`idb-keyval` via CDN) for local data storage (guest mode)
 - **Supabase** (`@supabase/supabase-js` via CDN) for cloud auth and database (project ref: `iwkbuurltlnaszptrgth`)
-- **Vercel** deployment at `https://knowledge-dashboard-zeta.vercel.app` with SPA rewrites (`vercel.json`)
+- **Vercel** deployment at `https://knowledge-dashboard-zeta.vercel.app` with SPA rewrites (`vercel.json`) — auto-runs `vite build` via root `vite.config.js`
 - **Service worker** at `sw.js` for offline caching
-- No build step — edit `index.html` directly and deploy
+- **GitHub**: `Rester525/knowledge-dashboard` — push to main triggers Vercel deploy
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `spain-czechrepublic-2016.com/index.html` | The entire app — HTML, CSS (~700 lines inline), JS (~1300 lines inline) |
+| `index.html` (root) | The entire SPA — HTML, CSS (~700 lines inline), JS (~1550 lines inline) |
+| `spain-czechrepublic-2016.com/index.html` | Mirror of root index.html (kept for Cloudflare Pages) |
 | `kd-test.mjs` | Core E2E test suite — 27 tests (navigation, UI elements, keyboard shortcuts, calculator, study timer, command palette) |
-| `kd-features.mjs` | Feature tests — 15 tests (settings, themes, accent colors, login overlay, auth form toggle, Ctrl+8) |
+| `kd-features.mjs` | Feature tests — 14 tests (settings, themes, accent colors, backgrounds, login overlay, auth form toggle, Ctrl+8) |
+| `screenshot-test.mjs` | Playwright screenshot script — 13 screenshots of auth flows, themes, backgrounds, accents, sidebar, command palette |
 | `test-full.mjs` | Full CRUD tests |
 | `schema.sql` | Idempotent Supabase migration — tables, RLS policies, indexes |
-| `spain-czechrepublic-2016.com/vercel.json` | SPA rewrites config |
-| `spain-czechrepublic-2016.com/sw.js` | Service worker |
+| `vercel.json` (root) | SPA rewrites config for Vercel |
 
 ## Views & Navigation
 
@@ -40,10 +41,11 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 
 ## What's Implemented
 
-- **Auth (Supabase)**: Login overlay with email/password sign in and sign up via Supabase Auth. Handles confirmation email flow, duplicate accounts, session persistence via `getSession()`, auth state listener, and sign out. Guest mode (IndexedDB) still available.
+- **Auth (Supabase)**: Three-pillar login gateway — Sign In, Create Account (with back button to Sign In), and Guest/Offline Mode. Login overlay with email/password sign in and sign up via Supabase Auth. Form state management with `showAuthMode()`, `updateAuthFormState()`, `backToSignIn()`. Handles confirmation email flow, duplicate accounts, session persistence via `getSession()`, auth state listener, and sign out. Guest mode (IndexedDB) still available.
 - **Guest mode**: All data stored in IndexedDB via `idb-keyval` — works offline
-- **Themes**: Standard, Retro (`.theme-retro`), 8-Bit (`.theme-8bit`) — persisted in `localStorage('kd-theme')`
-- **Accent colors**: 10 colors (blue, green, purple, amber, rose, red, orange, teal, cyan, indigo) — stored in `localStorage('kd-accent')`
+- **Themes**: Standard, Retro (`.theme-retro`), 8-Bit (`.theme-8bit`) — selectable cards in Settings, persisted in `localStorage('kd-theme')`
+- **Accent colors**: 10 colors (blue, green, purple, amber, rose, red, orange, teal, cyan, indigo) — stored in `localStorage('kd-accent')`, rendered as clickable swatches in sidebar and Settings
+- **Backgrounds**: 4 options (Solid, Gradient, Glass, Synthwave) — CSS classes `.bg-gradient`, `.bg-glass`, `.bg-synthwave`, persisted in `localStorage('kd-background')`
 - **3D buttons**: `.btn-3d` class with box-shadow + translateY on :active
 - **Command palette**: Ctrl+K to open, keyboard navigation, fuzzy-like search
 - **Export/Import**: Full data export/import via JSON files in Settings
@@ -55,9 +57,10 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 ## Tests
 
 ```bash
-node kd-test.mjs       # Core tests (27) — navigation, UI, keyboard, calculator, timer
-node kd-features.mjs   # Feature tests (15) — settings, themes, auth overlay
-node test-full.mjs     # Full CRUD tests
+node kd-test.mjs          # Core tests (27) — navigation, UI, keyboard, calculator, timer
+node kd-features.mjs      # Feature tests (14) — settings, themes, backgrounds, auth overlay
+node screenshot-test.mjs  # Screenshot capture (13) — auth flows, themes, backgrounds, accents
+node test-full.mjs        # Full CRUD tests
 ```
 
 Tests use Playwright, bypass login via `localStorage.setItem('kd-auth', 'guest')`.
@@ -81,7 +84,7 @@ The official Supabase MCP server is in `~/.claude.json`:
 - Scoped to `/home/rishi-reddy/my-project` and `spain-czechrepublic-2016.com` directories
 - **Needs session restart** to load tools
 
-A custom-built fallback MCP server also exists at `~/my-project/supabase-mcp/` (deprecated).
+_Deprecated custom MCP server at `~/my-project/supabase-mcp/` has been deleted._
 
 ### SPA Auth Implementation Details
 
@@ -105,17 +108,9 @@ When `_isCloudUser` is true, the `api()` function routes CRUD operations (notes,
 
 **Guest mode** continues to use the FastAPI backend for all CRUD — unchanged.
 
-## What Still Needs to Happen
-
-### Vercel Env
-- Add environment variables on Vercel: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`
-
-### MCP Configuration
-- Session restart needed for Supabase MCP tools to appear in tool list
-
 ## Current Session Context
 
-_Last worked on: 2026-05-22 — Cloud CRUD layer wired up in the SPA, deprecated custom Supabase MCP server cleaned up. Vercel env vars pending (awaiting MCP auth)._
+_Last worked on: 2026-05-23 — Refactored auth flow with three-pillar login gateway (Sign In / Create Account / Guest), enhanced Settings with backgrounds (Solid, Gradient, Glass, Synthwave), expanded accent colors from 5 to 10. Added email confirmation page after signup. Disabled Supabase email confirmation (`mailer_autoconfirm: true`). Deployed to Vercel via CLI. Added VS Code workspace config: `.vscode/extensions.json`, `.vscode/settings.json`, `eslint.config.js`. All E2E tests pass against production URL._
 
 ## Project-level CLAUDE.md files
 

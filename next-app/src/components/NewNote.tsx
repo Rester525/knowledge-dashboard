@@ -33,7 +33,7 @@ export function NewNote({ onCreated }: { onCreated: () => void }) {
 
   return (
     <div className="glass-card p-5">
-      <h3 className="text-[#e1e1e9] font-semibold mb-3 text-sm uppercase tracking-wider">New Note</h3>
+      <h3 className="text-slate-900 font-semibold mb-3 text-sm uppercase tracking-wider">New Note</h3>
       <textarea
         className="glass-input resize-none h-28 text-sm"
         placeholder="Capture a thought..."
