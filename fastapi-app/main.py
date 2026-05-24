@@ -43,7 +43,8 @@ import httpx
 
 import aiosqlite
 from fastapi import FastAPI, Form, HTTPException, Query, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -67,6 +68,24 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Knowledge Dashboard", version="2.0.0", lifespan=lifespan)
+
+# ── CORS + Private Network Access (allow Vercel SPA → localhost backend) ──
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.middleware("http")
+async def _private_network_access(request, call_next):
+    """Add Access-Control-Allow-Private-Network so Chrome allows HTTPS→localhost
+    fetches (Private Network Access check). Must run after CORSMiddleware so the
+    CORS headers are already on the response."""
+    response: Response = await call_next(request)
+    response.headers.append("Access-Control-Allow-Private-Network", "true")
+    return response
 
 
 # ── Database schema (auto-migrate on start) ────────────────────────────────
