@@ -161,6 +161,10 @@ class AIQuizGradeRequest(BaseModel):
     questions: list
     answers: dict
 
+class YouTubeRequest(BaseModel):
+    url: str
+    topic: str = ""
+
 
 # ── Utility ────────────────────────────────────────────────────────────────
 
@@ -607,6 +611,221 @@ IMPORTANT: Return ONLY the JSON array, nothing else."""
         questions = [{"id": 1, "type": "mc", "question": "Failed to parse quiz. Try again.", "choices": ["A) OK"], "answer": "A"}]
 
     return {"topic": req.topic, "questions": questions, "total": len(questions)}
+
+
+# ── AI: YouTube → Notesheet (with transcript + OCR fallback) ──────────────
+
+@app.post("/api/ai/youtube-notesheet/stream")
+async def youtube_notesheet_stream(req: YouTubeRequest):
+    """Accept a YouTube URL, extract transcript (with OCR fallback on video
+    frames if no captions), generate a notesheet, and save as a note — streamed
+    via SSE for live progress."""
+
+    async def event_stream():
+        yield _sse({"stage": "fetching", "progress": 5, "message": "Fetching video info…"})
+
+        import yt_dlp
+
+        text = ""
+        video_title = "YouTube Video"
+
+        try:
+            # ── Stage 1: Get video metadata & captions ──────────────────────
+            ydl_opts = {
+                "skip_download": True,
+                "writesubtitles": False,
+                "writeautomaticsub": False,
+                "quiet": True,
+                "no_warnings": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(req.url, download=False)
+                video_title = info.get("title", "YouTube Video")
+                description = info.get("description", "") or ""
+
+            yield _sse({"stage": "fetching", "progress": 15, "message": f"Got video: {video_title}"})
+
+            # ── Stage 2: Extract captions / transcript ──────────────────────
+            yield _sse({"stage": "captions", "progress": 25, "message": "Extracting captions…"})
+
+            # Try yt-dlp with subtitle download
+            sub_opts = {
+                "skip_download": True,
+                "writesubtitles": True,
+                "writeautomaticsub": True,
+                "subtitleslangs": ["en"],
+                "subtitlesformat": "vtt",
+                "quiet": True,
+                "no_warnings": True,
+                "outtmpl": "/tmp/yt-sub-%(id)s",
+            }
+            with yt_dlp.YoutubeDL(sub_opts) as ydl:
+                info = ydl.extract_info(req.url, download=True)
+
+            # Find downloaded subtitle file
+            sub_files = []
+            for f in os.listdir("/tmp"):
+                if f.startswith("yt-sub-") and f.endswith(".vtt"):
+                    sub_files.append(os.path.join("/tmp", f))
+            sub_files.sort(key=os.path.getmtime, reverse=True)
+
+            if sub_files:
+                # Parse VTT — strip timestamps and metadata
+                import re
+                with open(sub_files[0], "r", encoding="utf-8", errors="replace") as fh:
+                    vtt_raw = fh.read()
+                # Remove WEBVTT header and cue timestamps
+                lines = vtt_raw.split("\n")
+                clean_lines = []
+                for line in lines:
+                    line = line.strip()
+                    if not line or line.startswith("WEBVTT") or line.startswith("Kind:") or line.startswith("Language:"):
+                        continue
+                    if "-->" in line:
+                        continue
+                    if re.match(r"^\d{2}:\d{2}", line):
+                        continue
+                    # Remove <c> tags and other VTT junk
+                    line = re.sub(r"<[^>]+>", "", line)
+                    if line.strip():
+                        clean_lines.append(line.strip())
+                text = " ".join(clean_lines)
+
+            # Clean up temp subtitle files
+            for sf in sub_files:
+                try:
+                    os.unlink(sf)
+                except OSError:
+                    pass
+
+        except Exception as e:
+            # If yt-dlp fails entirely, fall through to description-only
+            yield _sse({"stage": "captions", "progress": 25, "message": f"Caption extraction note: {str(e)[:80]}"})
+
+        # ── Stage 3: OCR fallback if no captions ──────────────────────────
+        if len(text.strip()) < 50:
+            yield _sse({"stage": "ocr", "progress": 35, "message": "No captions found — trying OCR on video frames…"})
+            ocr_text = await _youtube_ocr_fallback(req.url)
+            if ocr_text.strip():
+                text = ocr_text
+                yield _sse({"stage": "ocr", "progress": 45, "message": f"OCR extracted {len(text)} characters"})
+            elif description.strip():
+                # Last fallback: use video description
+                text = description
+                yield _sse({"stage": "ocr", "progress": 45, "message": "Using video description as source"})
+            else:
+                yield _sse({"stage": "error", "progress": 0, "message": "No captions or extractable text found"})
+                return
+
+        yield _sse({"stage": "extracted", "progress": 50, "message": f"Extracted {len(text)} characters from video"})
+
+        # ── Stage 4: Generate notesheet ────────────────────────────────────
+        yield _sse({"stage": "generating", "progress": 55, "message": "Generating notesheet with AI…"})
+
+        actual_topic = req.topic.strip() or video_title
+        title, content = await _generate_notesheet_from_text(text, actual_topic)
+
+        yield _sse({"stage": "generating", "progress": 80, "message": "Notesheet generated!"})
+
+        # ── Stage 5: Save to SQLite ────────────────────────────────────────
+        yield _sse({"stage": "saving_note", "progress": 88, "message": "Saving to Notes…"})
+
+        db = app.state.db
+        note_id = str(uuid.uuid4())
+        now = _now()
+        note_title = f"Notesheet: {title}"
+        await db.execute(
+            "INSERT INTO notes (id, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (note_id, note_title, content, now, now),
+        )
+        await db.commit()
+
+        from search_engine import add_note
+        asyncio.ensure_future(add_note(note_id, f"{note_title}\n{content}"))
+
+        yield _sse({
+            "stage": "done",
+            "progress": 100,
+            "message": "Complete!",
+            "note": {"id": note_id, "title": note_title, "content": content},
+        })
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+async def _youtube_ocr_fallback(url: str) -> str:
+    """Download 5 evenly-spaced video frames and run OCR on each via Ollama vision.
+    Returns combined text or empty string."""
+    import yt_dlp
+
+    tmpdir = tempfile.mkdtemp()
+    try:
+        # Get the best available format URL
+        ydl_opts = {"quiet": True, "no_warnings": True}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            duration = info.get("duration", 60) or 60
+            # Get best format with both audio and video
+            fmt_url = None
+            for fmt in info.get("formats", []):
+                if fmt.get("vcodec") != "none" and fmt.get("acodec") != "none":
+                    fmt_url = fmt.get("url")
+                    break
+            if not fmt_url:
+                # Try video-only formats
+                for fmt in info.get("formats", []):
+                    if fmt.get("vcodec") != "none":
+                        fmt_url = fmt.get("url")
+                        break
+
+        if not fmt_url:
+            return ""
+
+        # Sample 5 frames evenly across the video
+        parts = []
+        for i in range(5):
+            timestamp = int(duration * (i + 1) / 6)  # spread across video
+            out_path = os.path.join(tmpdir, f"frame_{i}.png")
+            subprocess.run(
+                ["ffmpeg", "-ss", str(timestamp), "-i", fmt_url,
+                 "-vframes", "1", "-q:v", "2", out_path,
+                 "-y", "-loglevel", "error"],
+                capture_output=True, timeout=30,
+            )
+            if not os.path.exists(out_path):
+                continue
+
+            with open(out_path, "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode()
+
+            try:
+                resp = httpx.post(
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={
+                        "model": "qwen2.5vl:7b",
+                        "prompt": "Extract all visible text from this video frame. Return only the text, no commentary.",
+                        "images": [img_b64],
+                        "stream": False,
+                    },
+                    timeout=120.0,
+                )
+                resp.raise_for_status()
+                ocr_text = resp.json().get("response", "").strip()
+                if ocr_text:
+                    parts.append(ocr_text)
+            except Exception:
+                pass
+
+        return "\n\n".join(parts)
+
+    except Exception:
+        return ""
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 # ── Todos ───────────────────────────────────────────────────────────────────

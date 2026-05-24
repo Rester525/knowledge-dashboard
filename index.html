@@ -1843,11 +1843,21 @@
       // ── Config ──────────────────────────────────────────────────────────
       // When served through Cloudflare Pages, the FastAPI backend runs either
       // locally or via Cloudflare Tunnel. In dev, point to localhost:8000.
-      const API_BASE =
-        window.location.origin.includes("localhost") ||
-        window.location.hostname === "127.0.0.1"
-          ? "http://localhost:8000"
-          : "";
+      const API_BASE = (() => {
+        // Allow override via localStorage (settable from Settings or devtools)
+        try {
+          const stored = localStorage.getItem("kd-api-base");
+          if (stored) return stored;
+        } catch {}
+        // Auto-detect: localhost dev → FastAPI backend
+        if (
+          window.location.origin.includes("localhost") ||
+          window.location.hostname === "127.0.0.1"
+        )
+          return "http://localhost:8000";
+        // Default: same-origin (works when FastAPI is proxied or tunneled)
+        return "";
+      })();
 
       // ── API Client (offline-aware) ──────────────────────────────────────
       let _isOnline = navigator.onLine;
@@ -2260,6 +2270,7 @@
         _accentColor = color;
         renderSidebarAccents();
       }
+      window.setAccent = setAccent;
 
       // ── Confirm Modal ──────────────────────────────────────────────────────
       let _confirmResolve = null;
@@ -3915,6 +3926,15 @@
             <span id="ns-status" style="margin-left:12px;font-size:12px;color:#64748b"></span>
           </div>
 
+          <div class="card" style="margin-bottom:16px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px;color:#e2e8f0">YouTube Video to Notes</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input id="yt-url" placeholder="Paste YouTube URL here..." style="flex:1;min-width:200px;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:14px;outline:none">
+              <button onclick="generateYouTubeNotesheet()" style="padding:10px 20px;border-radius:8px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:13px;font-weight:500">YouTube to Notes</button>
+            </div>
+            <div style="font-size:11px;color:#64748b;margin-top:6px">Gets transcript (auto-captions) → AI generates study notes. OCR fallback on video frames if no captions.</div>
+          </div>
+
           <div id="ns-progress" style="display:none;margin-bottom:16px" class="card">
             <div style="display:flex;justify-content:space-between;font-size:13px;color:#94a3b8;margin-bottom:8px">
               <span id="ns-prog-msg">Processing...</span>
@@ -3982,6 +4002,69 @@
             '<div class="card" style="white-space:pre-wrap;font-size:13px;color:#94a3b8;line-height:1.7">' +
             esc(r.content) +
             "</div>";
+        } catch (e) {
+          status.textContent = "Failed: " + e.message;
+          status.style.color = "#f87171";
+          result.innerHTML = errorHTML(e.message);
+        }
+      };
+
+      // ── YouTube → Notesheet ──────────────────────────────────────────────
+      window.generateYouTubeNotesheet = async function () {
+        const url = document.getElementById("yt-url").value.trim();
+        const status = document.getElementById("ns-status");
+        const result = document.getElementById("ns-result");
+        if (!url) {
+          addToast("error", "Enter a YouTube URL");
+          return;
+        }
+        status.textContent = "";
+        result.innerHTML = "";
+        showProgress(2, "Fetching video...", "Starting");
+        try {
+          const response = await fetch(API_BASE + "/api/ai/youtube-notesheet/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url, topic: document.getElementById("ns-topic").value.trim() }),
+          });
+          if (!response.ok) throw new Error(await response.text());
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let finalNote = null;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (!line.startsWith("data: ")) continue;
+              try {
+                const data = JSON.parse(line.slice(6));
+                showProgress(data.progress, data.message, data.stage);
+                if (data.stage === "done" && data.note) {
+                  finalNote = data.note;
+                } else if (data.stage === "error") {
+                  status.textContent = "Failed: " + data.message;
+                  status.style.color = "#f87171";
+                  result.innerHTML = errorHTML(data.message);
+                  return;
+                }
+              } catch {}
+            }
+          }
+          if (finalNote) {
+            status.textContent = "✓ Saved to Notes!";
+            status.style.color = "#34d399";
+            result.innerHTML =
+              '<div class="card" style="white-space:pre-wrap;font-size:13px;color:#94a3b8;line-height:1.7">' +
+              esc(finalNote.content) +
+              "</div>";
+          } else {
+            status.textContent = "Failed: no result";
+            status.style.color = "#f87171";
+          }
         } catch (e) {
           status.textContent = "Failed: " + e.message;
           status.style.color = "#f87171";
