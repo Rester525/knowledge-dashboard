@@ -1850,15 +1850,34 @@
           const stored = localStorage.getItem("kd-api-base");
           if (stored) return stored;
         } catch {}
-        // Auto-detect: localhost dev → FastAPI backend
+        // Auto-detect: on localhost the FastAPI backend serves both SPA + API
         if (
           window.location.origin.includes("localhost") ||
-          window.location.hostname === "127.0.0.1"
+          window.location.hostname === "127.0.0.1" ||
+          window.location.hostname === "0.0.0.0"
         )
-          return "http://localhost:8000";
+          return ""; // same-origin — SPA is served by FastAPI
         // Default: same-origin (works when FastAPI is proxied or tunneled)
         return "";
       })();
+
+      // Allow user to set/clear API_BASE at runtime from Settings
+      window.setApiBase = function () {
+        const input = document.getElementById("settings-api-input");
+        const val = input?.value.trim() || "";
+        try {
+          localStorage.setItem("kd-api-base", val);
+        } catch {}
+        addToast("info", "API base set to " + (val || "(same origin)") + " — reloading...");
+        setTimeout(() => location.reload(), 1000);
+      };
+      window.clearApiBase = function () {
+        try {
+          localStorage.removeItem("kd-api-base");
+        } catch {}
+        addToast("info", "API base reset — reloading...");
+        setTimeout(() => location.reload(), 1000);
+      };
 
       // ── API Client (offline-aware) ──────────────────────────────────────
       let _isOnline = navigator.onLine;
@@ -4685,6 +4704,18 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button onclick="exportData()" class="btn-3d btn-3d-primary" style="padding:10px 20px;font-size:13px">Export All Data (JSON)</button>
             <button onclick="addToast('info','Import coming soon')" class="btn-3d btn-3d-secondary" style="padding:10px 20px;font-size:13px">Import Data</button>
+          </div>
+        </div>
+        <div class="settings-section">
+          <h3>Backend</h3>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.6">
+            <p>API Server: <strong id="settings-api-display">${API_BASE || "(same origin)"}</strong></p>
+            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+              <input id="settings-api-input" placeholder="http://localhost:8001" style="flex:1;min-width:150px;padding:8px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:12px;outline:none">
+              <button onclick="setApiBase()" class="sort-btn" style="font-size:12px">Set</button>
+              <button onclick="clearApiBase()" class="sort-btn" style="font-size:12px">Reset</button>
+            </div>
+            <p style="font-size:11px;color:#64748b;margin-top:6px">Set a custom backend URL if running FastAPI on a different port or via tunnel. Leave empty for same-origin.</p>
           </div>
         </div>
         <div class="settings-section">
