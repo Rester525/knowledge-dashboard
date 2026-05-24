@@ -3569,7 +3569,7 @@
         renderView("bookmarks");
       };
       window.addBookmark = async function () {
-        const url = document.getElementById("bm-url").value.trim();
+        let url = document.getElementById("bm-url").value.trim();
         const title = document.getElementById("bm-title").value.trim();
         if (!url) {
           addToast("error", "Bookmark URL is required");
