@@ -1816,6 +1816,7 @@
             >
           </div>
         </header>
+        <div id="bookmark-bar" style="display:none;padding:6px 20px;background:rgba(30,41,59,0.4);border-bottom:1px solid #334155;overflow-x:auto;white-space:nowrap;flex-shrink:0"></div>
         <div class="content" id="view-content">
           <div
             style="
@@ -2730,6 +2731,7 @@
               title: item.title,
               description: item.description || "",
             });
+          if (item.type === "bookmark") renderBookmarkBar();
           invalidateStatsCache();
           addToast("success", item.type + " restored");
           navigate(currentView);
@@ -3129,6 +3131,7 @@
               for (const li of locals) await dbPut(entity, li);
             }
           }
+          renderBookmarkBar();
         } catch {
           /* silent */
         }
@@ -3574,14 +3577,13 @@
           return;
         }
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
-          addToast("error", "URL must start with http:// or https://");
-          document.getElementById("bm-url").focus();
-          return;
+          url = "https://" + url;
         }
         invalidateStatsCache();
         await apiPost("/api/bookmarks", { url, title, description: "" });
         document.getElementById("bm-url").value = "";
         document.getElementById("bm-title").value = "";
+        renderBookmarkBar();
         navigate("bookmarks");
       };
       window.deleteBookmark = async function (id) {
@@ -3602,8 +3604,38 @@
           });
         } catch {}
         await apiDel("/api/bookmarks/" + id);
+        renderBookmarkBar();
         addToast("info", "Bookmark deleted. Ctrl+Z to undo.");
         navigate("bookmarks");
+      };
+
+      // ── Bookmark Bar ───────────────────────────────────────────────────
+      window.renderBookmarkBar = async function () {
+        const bar = document.getElementById("bookmark-bar");
+        if (!bar) return;
+        try {
+          const bms = await apiGet("/api/bookmarks");
+          if (!bms || bms.length === 0) {
+            bar.style.display = "none";
+            return;
+          }
+          bar.style.display = "block";
+          const maxShow = 20;
+          const shown = bms.slice(0, maxShow);
+          bar.innerHTML =
+            `<span style="font-size:11px;color:#64748b;margin-right:8px;vertical-align:middle">🔖</span>` +
+            shown
+              .map(
+                (b) =>
+                  `<a href="${esc(b.url)}" target="_blank" title="${esc(b.title || b.url)}" style="display:inline-block;padding:3px 10px;margin:2px 3px;border-radius:6px;background:#1e293b;color:var(--accent);font-size:12px;text-decoration:none;border:1px solid #334155;transition:all 0.15s;vertical-align:middle" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='#1e293b'">${esc(b.title || b.url)}</a>`,
+              )
+              .join("") +
+            (bms.length > maxShow
+              ? `<span style="font-size:11px;color:#475569;margin-left:4px;vertical-align:middle">+${bms.length - maxShow} more</span>`
+              : "");
+        } catch {
+          bar.style.display = "none";
+        }
       };
 
       // ── View: Search ────────────────────────────────────────────────────
@@ -4753,6 +4785,8 @@
         navigate(location.hash.slice(1) || "dashboard");
         checkConnection();
         setInterval(checkConnection, 30000);
+        renderBookmarkBar();
+        setTimeout(renderBookmarkBar, 1000);
         setTimeout(() => {
           if (_isOnline) refreshLocalData();
         }, 1000);
