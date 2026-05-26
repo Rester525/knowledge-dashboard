@@ -2353,15 +2353,16 @@
       // ── Google Drive helpers ──────────────────────────────────────────────
       let _driveTokenClient = null;
 
-      function loadGIS() {
+      function loadGIS(timeoutMs = 5000) {
         return new Promise((resolve, reject) => {
           if (typeof google !== "undefined" && google.accounts && google.accounts.oauth2) {
             resolve(); return;
           }
+          const timer = setTimeout(() => reject(new Error("GIS load timed out")), timeoutMs);
           const s = document.createElement("script");
           s.src = "https://accounts.google.com/gsi/client";
-          s.onload = resolve;
-          s.onerror = () => reject(new Error("Failed to load Google Identity Services"));
+          s.onload = () => { clearTimeout(timer); resolve(); };
+          s.onerror = () => { clearTimeout(timer); reject(new Error("Failed to load Google Identity Services")); };
           document.head.appendChild(s);
         });
       }
