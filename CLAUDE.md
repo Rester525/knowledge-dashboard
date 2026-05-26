@@ -10,7 +10,7 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 - **Tailwind CSS** via CDN (`cdn.tailwindcss.com`) for utility classes
 - **IndexedDB** (`idb-keyval` via CDN) for local data storage (guest mode)
 - **Supabase** (`@supabase/supabase-js` via CDN) for cloud auth and database (project ref: `iwkbuurltlnaszptrgth`)
-- **Vercel** deployment at `https://knowledge-dashboard-zeta.vercel.app` with SPA rewrites (`vercel.json`) — auto-runs `vite build` via root `vite.config.js`
+- **Vercel** deployment at `https://skillstack-kd.vercel.app` with SPA rewrites (`vercel.json`) — auto-runs `vite build` via root `vite.config.js`
 - **Service worker** at `sw.js` for offline caching
 - **GitHub**: `Rester525/knowledge-dashboard` — push to main triggers Vercel deploy
 
@@ -24,20 +24,23 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 | `kd-features.mjs` | Feature tests — 14 tests (settings, themes, accent colors, backgrounds, login overlay, auth form toggle, Ctrl+8) |
 | `screenshot-test.mjs` | Playwright screenshot script — 13 screenshots of auth flows, themes, backgrounds, accents, sidebar, command palette |
 | `test-full.mjs` | Full CRUD tests |
+| `test-pdf-notesheet.mjs` | PDF notesheet E2E test (localhost backend) — 4 tests |
+| `test-vercel-pdf.mjs` | PDF notesheet E2E test (Vercel SPA → tunnel) — 3 tests |
 | `schema.sql` | Idempotent Supabase migration — tables, RLS policies, indexes |
 | `vercel.json` (root) | SPA rewrites config for Vercel |
 
 ## Views & Navigation
 
-8 views navigable via sidebar or `Ctrl+1` through `Ctrl+8`:
+7 views navigable via sidebar or `Ctrl+1` through `Ctrl+7`:
 1. Dashboard (stats overview)
-2. Notes (CRUD with IndexedDB)
+2. Notes (CRUD + inline search, Delete All)
 3. Todos (CRUD with Kanban toggle)
 4. Bookmarks (CRUD)
-5. Search (text search across notes)
-6. Calculator (math with presets)
-7. Study (timer with Pomodoro 25/5 preset, 3 study tabs)
-8. Settings (theme, accent colors, export/import, account info)
+5. Calculator (math with presets)
+6. Study (timer with Pomodoro 25/5 preset, 3 study tabs)
+7. Settings (theme, accent colors, export/import, account info)
+
+Search was merged into Notes view. Ctrl+F navigates to Notes and focuses search.
 
 ## What's Implemented
 
@@ -57,10 +60,11 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 ## Tests
 
 ```bash
-node kd-test.mjs          # Core tests (27) — navigation, UI, keyboard, calculator, timer
-node kd-features.mjs      # Feature tests (14) — settings, themes, backgrounds, auth overlay
-node screenshot-test.mjs  # Screenshot capture (13) — auth flows, themes, backgrounds, accents
-node test-full.mjs        # Full CRUD tests
+node kd-test.mjs              # Core tests (27) — navigation, UI, keyboard, calculator, timer
+node kd-features.mjs          # Feature tests (14) — settings, themes, backgrounds, auth overlay
+node screenshot-test.mjs      # Screenshot capture (13) — auth flows, themes, backgrounds, accents
+node test-full.mjs            # Full CRUD tests
+node test-pdf-notesheet.mjs   # PDF notesheet test (requires cloudflared tunnel for Vercel access)
 ```
 
 Tests use Playwright, bypass login via `localStorage.setItem('kd-auth', 'guest')`.
@@ -110,7 +114,7 @@ When `_isCloudUser` is true, the `api()` function routes CRUD operations (notes,
 
 ## Current Session Context
 
-_Last worked on: 2026-05-23 — Refactored auth flow with three-pillar login gateway (Sign In / Create Account / Guest), enhanced Settings with backgrounds (Solid, Gradient, Glass, Synthwave), expanded accent colors from 5 to 10. Added email confirmation page after signup. Disabled Supabase email confirmation (`mailer_autoconfirm: true`). Deployed to Vercel via CLI. Added VS Code workspace config: `.vscode/extensions.json`, `.vscode/settings.json`, `eslint.config.js`. All E2E tests pass against production URL._
+_Last worked on: 2026-05-25 — Fixed Download PDF + Save to Google Docs buttons. PDF fix: moved clone from off-screen (`left:-9999px`) to on-screen invisible (`opacity:0.01; z-index:-1000`). Google Drive: rewrote with GIS OAuth + Drive API multipart upload (falls back to HTML download if OAuth origin not registered). Custom domain: `skillstack-kd.vercel.app` is the sole domain — old `knowledge-dashboard-zeta.vercel.app` removed. All test files updated to use new domain. OAuth client needs `https://skillstack-kd.vercel.app` added as JS origin in Google Cloud Console._
 
 ## Project-level CLAUDE.md files
 

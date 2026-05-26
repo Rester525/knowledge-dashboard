@@ -42,6 +42,8 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
     /></noscript>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       * {
@@ -223,6 +225,59 @@
         background: linear-gradient(90deg, #0ea5e9, #34d399);
         transition: width 0.4s ease;
       }
+      /* ── Notesheet Render ────────────────────────────────────────── */
+      .notesheet { font-size: 14px; color: #cbd5e1; line-height: 1.8; }
+      .notesheet h2 { font-size: 18px; font-weight: 700; color: #f1f5f9; margin: 24px 0 10px 0; padding-bottom: 6px; border-bottom: 1px solid #334155; }
+      .notesheet h3 { font-size: 15px; font-weight: 600; color: #e2e8f0; margin: 20px 0 8px 0; }
+      .notesheet h4 { font-size: 14px; font-weight: 600; color: #94a3b8; margin: 16px 0 6px 0; }
+      .notesheet p { margin: 8px 0; }
+      .notesheet strong { color: #f1f5f9; font-weight: 600; }
+      .notesheet ul, .notesheet ol { margin: 6px 0; padding-left: 22px; }
+      .notesheet li { margin: 3px 0; }
+      .notesheet code { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #34d399; }
+      .notesheet pre { background: #0f172a; padding: 14px; border-radius: 8px; overflow-x: auto; margin: 12px 0; border: 1px solid #1e293b; }
+      .notesheet pre code { background: none; padding: 0; color: #cbd5e1; }
+      /* Notesheet tables */
+      .notesheet table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+      .notesheet th, .notesheet td { padding: 8px 12px; border: 1px solid #334155; text-align: left; }
+      .notesheet th { background: #1e293b; color: #e2e8f0; font-weight: 600; }
+      .notesheet tr:nth-child(even) { background: #0f172a; }
+      .notesheet tr:nth-child(odd) { background: #1a2332; }
+      /* Definition box */
+      .notesheet .def-box { background: linear-gradient(135deg, #0c1929, #0f2035); border-left: 4px solid #0ea5e9; border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+      .notesheet .def-box .def-label { font-size: 11px; font-weight: 600; color: #0ea5e9; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .notesheet .def-box .def-title { font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+      .notesheet .def-box .def-text { color: #94a3b8; font-size: 13px; line-height: 1.6; }
+      /* Formula box */
+      .notesheet .formula-box { background: linear-gradient(135deg, #1a0f2e, #241539); border-left: 4px solid #a855f7; border-radius: 8px; padding: 14px 18px; margin: 14px 0; text-align: center; }
+      .notesheet .formula-box .formula { font-size: 16px; font-weight: 600; color: #e2e8f0; font-family: 'Times New Roman', serif; }
+      .notesheet .formula-box .formula-label { font-size: 11px; color: #a855f7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+      /* Example box */
+      .notesheet .example-box { background: linear-gradient(135deg, #1a2e1a, #0f2a1f); border-left: 4px solid #34d399; border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+      .notesheet .example-box .ex-label { font-size: 11px; font-weight: 600; color: #34d399; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .notesheet .example-box .ex-title { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; }
+      .notesheet .example-box .ex-text { color: #94a3b8; font-size: 13px; line-height: 1.6; }
+      /* Tip box */
+      .notesheet .tip-box { background: linear-gradient(135deg, #1e1a0a, #2a2010); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+      .notesheet .tip-box .tip-label { font-size: 11px; font-weight: 600; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .notesheet .tip-box .tip-text { color: #94a3b8; font-size: 13px; line-height: 1.6; }
+      /* Notesheet action buttons */
+      .ns-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+      .ns-actions button { padding: 8px 16px; font-size: 12px; border-radius: 8px; cursor: pointer; font-weight: 500; border: none; display: inline-flex; align-items: center; gap: 6px; }
+      .ns-actions .ns-btn-pdf { background: #ef4444; color: #fff; }
+      .ns-actions .ns-btn-pdf:hover { background: #dc2626; }
+      .ns-actions .ns-btn-drive { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+      .ns-actions .ns-btn-drive:hover { background: #334155; }
+      @media print {
+        body > *:not(.ns-print-area):not(.ns-print-area *) { display: none !important; }
+        .ns-print-area { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 20px; }
+        .ns-print-area .ns-actions { display: none !important; }
+      }
+      /* Blockquote */
+      .notesheet blockquote { border-left: 3px solid #475569; padding: 8px 14px; margin: 12px 0; background: #1e293b; border-radius: 0 6px 6px 0; color: #94a3b8; font-size: 13px; }
+      /* Horizontal rule (section divider) */
+      .notesheet hr { border: none; border-top: 1px dashed #334155; margin: 20px 0; }
+
       /* Toast */
       #toast-container {
         position: fixed;
@@ -1645,19 +1700,6 @@
             </svg>
             <span>Bookmarks</span>
           </div>
-          <div class="nav-item" data-view="search" onclick="navigate('search')">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <span>Search</span>
-          </div>
           <div
             class="nav-item"
             data-view="calculator"
@@ -1805,13 +1847,16 @@
           <div style="display: flex; gap: 8px; align-items: center">
             <span
               id="connection-status"
+              onclick="navigate('settings')"
               style="
                 font-size: 11px;
                 padding: 4px 10px;
                 border-radius: 20px;
                 background: #1e293b;
                 color: #64748b;
+                cursor: pointer;
               "
+              title="Click to configure backend in Settings"
               >connecting...</span
             >
           </div>
@@ -1858,7 +1903,7 @@
         )
           return ""; // same-origin — SPA is served by FastAPI
         // Default: same-origin (works when FastAPI is proxied or tunneled)
-        return "";
+        return "https://marc-spent-rob-shuttle.trycloudflare.com";
       })();
 
       // Allow user to set/clear API_BASE at runtime from Settings
@@ -2119,7 +2164,6 @@
           notes: renderNotes,
           todos: renderTodos,
           bookmarks: renderBookmarks,
-          search: renderSearch,
           calculator: renderCalculator,
           study: renderStudy,
           settings: renderSettings,
@@ -2174,6 +2218,421 @@
       function errorHTML(msg) {
         return `<div style="display:flex;align-items:center;justify-content:center;height:200px"><div style="text-align:center;color:#f87171"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 12px"><path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg><p style="font-size:14px;font-weight:500">${esc(msg)}</p><button onclick="navigate(currentView)" style="margin-top:12px;padding:6px 16px;border-radius:8px;border:1px solid #475569;background:transparent;color:#e2e8f0;cursor:pointer;font-size:12px">Retry</button></div></div>`;
       }
+
+      function renderNotesheet(content) {
+        if (!content) return '<div class="card" style="color:#64748b;font-size:13px">No content</div>';
+        // Escape HTML for safety, then convert markdown to HTML
+        const safe = esc(content);
+        let html;
+        try {
+          html = marked.parse(safe, { breaks: true, gfm: true });
+        } catch (e) {
+          html = safe.replace(/\n/g, '<br>');
+        }
+        // Post-process: wrap sections in definition/formula/example/tip boxes
+        // Match h2/h3 headings followed by content until next heading or end
+        const sectionRegex = /<(h[23])([^>]*)>(.*?)<\/\1>([\s\S]*?)(?=(?:<(?:h[23])|$))/g;
+        html = html.replace(sectionRegex, (match, tag, attrs, heading, body) => {
+          const text = heading.replace(/<[^>]+>/g, '').trim().toLowerCase();
+          let boxClass = null;
+          let label = null;
+          if (/definition|key (?:definitions?|concepts?|terms?|ideas?)/.test(text)) {
+            boxClass = 'def-box'; label = 'Definition';
+          } else if (/formula/.test(text)) {
+            boxClass = 'formula-box'; label = 'Formula';
+          } else if (/example/.test(text)) {
+            boxClass = 'example-box'; label = 'Example';
+          } else if (/common mistakes?|tips?|mistakes? to avoid|warning/.test(text)) {
+            boxClass = 'tip-box'; label = 'Tip';
+          }
+          if (boxClass) {
+            const title = heading.replace(/<[^>]+>/g, '').replace(/^\*{1,2}|\*{1,2}$/g, '').trim();
+            return `<div class="${boxClass}"><div class="${boxClass.replace('-box', '-label')}">${label}</div><div class="${boxClass.replace('-box', '-title')}">${esc(title)}</div><div class="${boxClass.replace('-box', '-text')}">${body}</div></div>`;
+          }
+          return match;
+        });
+        // Also handle inline <strong>Definition:</strong> patterns
+        html = html.replace(/<p><strong>(Definition|Formula|Example|Tip|Note):?<\/strong>\s*([\s\S]*?)<\/p>/gi, (m, label, rest) => {
+          const lc = label.toLowerCase();
+          let boxClass = 'def-box';
+          if (/formula/i.test(lc)) boxClass = 'formula-box';
+          else if (/example/i.test(lc)) boxClass = 'example-box';
+          else if (/tip|note/i.test(lc)) boxClass = 'tip-box';
+          const labelClass = boxClass.replace('-box', '-label');
+          const textClass = boxClass.replace('-box', '-text');
+          return `<div class="${boxClass}"><div class="${labelClass}">${label}</div><div class="${textClass}">${rest}</div></div>`;
+        });
+        return `<div class="notesheet card">${html}</div>`;
+      }
+
+      // ── Notesheet Export Actions ─────────────────────────────────────────
+      let _lastNotesheetContent = "";
+      let _lastNotesheetTitle = "";
+
+      function addNotesheetActions(nsContent, nsTitle) {
+        const content = nsContent || _lastNotesheetContent;
+        const title = nsTitle || _lastNotesheetTitle;
+        if (!content || content.length < 20) return "";
+        const safeTitle = esc(title || "Notesheet");
+        // Encode content for onclick attribute (replace quotes/backticks/newlines)
+        const encContent = content.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/`/g, '\\`');
+        const encTitle = safeTitle.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/`/g, '\\`');
+        return `
+          <div class="ns-actions">
+            <button onclick="downloadNotesheetPDF('${encContent}','${encTitle}')" class="ns-btn-pdf">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download PDF
+            </button>
+            <button onclick="saveNotesheetToDrive('${encContent}','${encTitle}')" class="ns-btn-drive">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              Save to Google Docs
+            </button>
+          </div>`;
+      }
+
+      async function downloadNotesheetPDF(nsContent, nsTitle) {
+        const content = nsContent || _lastNotesheetContent;
+        const title = nsTitle || _lastNotesheetTitle;
+        const result = document.getElementById("ns-result");
+        if (!result || !content) return;
+        addToast("info", "Generating PDF...");
+
+        try {
+          // Use html2pdf.js for one-click PDF download
+          if (typeof html2pdf !== "undefined") {
+            // Clone the notesheet content into a temp container for clean PDF
+            const clone = result.cloneNode(true);
+            clone.id = "ns-pdf-temp";
+            clone.style.position = "absolute";
+            clone.style.left = "0";
+            clone.style.top = "-9999px";
+            clone.style.width = "800px";
+            clone.style.background = "#0f172a";
+            clone.style.padding = "30px";
+            clone.style.color = "#cbd5e1";
+            clone.style.fontSize = "14px";
+            clone.style.lineHeight = "1.8";
+            clone.style.opacity = "1";
+            // Remove actions from clone (they shouldn't appear in PDF)
+            const actions = clone.querySelector(".ns-actions");
+            if (actions) actions.remove();
+            document.body.appendChild(clone);
+
+            const opt = {
+              margin: [10, 10, 10, 10],
+              filename: title.replace(/[^a-zA-Z0-9 _-]/g, "") + ".pdf",
+              image: { type: "jpeg", quality: 0.98 },
+              html2canvas: {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: "#0f172a",
+              },
+              jsPDF: {
+                unit: "mm",
+                format: "a4",
+                orientation: "portrait",
+              },
+              pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+            };
+            await html2pdf().set(opt).from(clone).save();
+            document.body.removeChild(clone);
+            addToast("success", "PDF downloaded!");
+          } else {
+            // Fallback: print dialog
+            result.classList.add("ns-print-area");
+            window.print();
+            setTimeout(() => result.classList.remove("ns-print-area"), 2000);
+          }
+        } catch (e) {
+          addToast("error", "PDF failed: " + e.message);
+          // Last resort fallback
+          window.print();
+        }
+      }
+
+      // ── Google Drive helpers ──────────────────────────────────────────────
+      let _driveTokenClient = null;
+
+      function loadGIS() {
+        return new Promise((resolve, reject) => {
+          if (typeof google !== "undefined" && google.accounts && google.accounts.oauth2) {
+            resolve(); return;
+          }
+          const s = document.createElement("script");
+          s.src = "https://accounts.google.com/gsi/client";
+          s.onload = resolve;
+          s.onerror = () => reject(new Error("Failed to load Google Identity Services"));
+          document.head.appendChild(s);
+        });
+      }
+
+      function initDriveTokenClient() {
+        if (_driveTokenClient) return _driveTokenClient;
+        _driveTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: "751382904143-dcv26p9s7n10a2010mn95ofhnqbubafr.apps.googleusercontent.com",
+          scope: "https://www.googleapis.com/auth/drive.file",
+          callback: () => {}, // dummy — real callback set per-request
+        });
+        return _driveTokenClient;
+      }
+
+      function requestDriveToken() {
+        return new Promise((resolve, reject) => {
+          try {
+            const client = initDriveTokenClient();
+            // Override callback for this request
+            client.callback = (resp) => {
+              if (resp.access_token) resolve(resp.access_token);
+              else if (resp.error) reject(new Error(resp.error));
+              else reject(new Error("OAuth returned no token"));
+            };
+            client.requestAccessToken();
+          } catch (e) { reject(e); }
+        });
+      }
+
+      function buildDriveHTML(title, content) {
+        // Convert markdown-style content to clean HTML, escaped for safety
+        const body = marked.parse(esc(content), { breaks: true, gfm: true });
+        return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${esc(title)}</title></head>
+<body style="font-family:Georgia,'Times New Roman',serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8;color:#1e293b">
+<h1 style="font-size:26px;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:10px">${esc(title)}</h1>
+${body}
+<p style="margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px">Generated by Knowledge Dashboard</p>
+</body></html>`;
+      }
+
+      function fallbackHTMLDownload(title, content) {
+        const html = buildDriveHTML(title, content);
+        const safeTitle = title.replace(/[^a-zA-Z0-9 _-]/g, "");
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = safeTitle + ".html";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      async function saveNotesheetToDrive(nsContent, nsTitle) {
+        const content = nsContent || _lastNotesheetContent;
+        const title = nsTitle || _lastNotesheetTitle;
+        if (!content) return;
+        addToast("info", "Connecting to Google Drive...");
+
+        try {
+          // 1. Load GIS if needed
+          if (typeof google === "undefined" || !google.accounts || !google.accounts.oauth2)
+            await loadGIS();
+
+          // 2. Get OAuth token (triggers popup)
+          const token = await requestDriveToken();
+
+          // 3. Build multipart upload — Drive converts HTML to Google Doc
+          addToast("info", "Creating Google Doc...");
+          const html = buildDriveHTML(title, content);
+          const boundary = "-------" + Math.random().toString(36).slice(2);
+          const metadata = JSON.stringify({
+            name: title.replace(/[^a-zA-Z0-9 _-]/g, ""),
+            mimeType: "application/vnd.google-apps.document",
+          });
+          const multipart = [
+            "--" + boundary,
+            "Content-Type: application/json; charset=UTF-8",
+            "",
+            metadata,
+            "--" + boundary,
+            "Content-Type: text/html; charset=UTF-8",
+            "",
+            html,
+            "--" + boundary + "--",
+          ].join("\r\n");
+
+          const resp = await fetch(
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+            {
+              method: "POST",
+              headers: {
+                Authorization: "Bearer " + token,
+                "Content-Type": "multipart/related; boundary=" + boundary,
+              },
+              body: multipart,
+            },
+          );
+          const data = await resp.json();
+          if (data.id) {
+            const docUrl = `https://docs.google.com/document/d/${data.id}/edit`;
+            // Show actionable toast with link
+            const c = document.getElementById("toast-container");
+            if (c) {
+              const t = document.createElement("div");
+              t.className = "toast toast-success";
+              t.innerHTML = `Google Doc created! <a href="${docUrl}" target="_blank" style="color:#34d399;text-decoration:underline">Open Document</a>`;
+              c.style.display = "flex";
+              c.appendChild(t);
+              setTimeout(() => { t.style.opacity = "0"; t.style.transition = "opacity .3s";
+                setTimeout(() => { t.remove(); if (c.children.length === 0) c.style.display = "none"; }, 300);
+              }, 12000);
+            }
+          } else {
+            throw new Error(data.error?.message || "Drive API returned no file ID");
+          }
+        } catch (e) {
+          console.error("Google Drive save failed:", e);
+          fallbackHTMLDownload(title, content);
+          addToast(
+            "error",
+            "Could not connect to Google Drive. Downloaded HTML — upload it to Drive manually.",
+            6000,
+          );
+        }
+      }
+
+      // ── Saved Notesheets ──────────────────────────────────────────────────
+      let _editingNotesheetId = null;  // tracks which saved notesheet is being edited
+
+      async function renderSavedNotesheets(container) {
+        container.innerHTML = '<div style="color:#64748b;font-size:13px;text-align:center;padding:40px">Loading saved notesheets...</div>';
+        try {
+          const notes = await apiGet("/api/notes");
+          const notesheets = notes.filter(n => n.title && n.title.startsWith("Notesheet:"));
+          if (notesheets.length === 0) {
+            container.innerHTML = '<div class="card" style="text-align:center;padding:40px;color:#64748b"><p style="font-size:14px;margin-bottom:8px">No saved notesheets yet.</p><p style="font-size:12px;color:#475569">Generate a notesheet in the <strong>Notesheet</strong> tab to see it here.</p></div>';
+            return;
+          }
+          // Fetch notesheet stats (limit info)
+          let limitStr = "";
+          try {
+            const stats = await apiGet("/api/notesheet/stats");
+            limitStr = ` &middot; ${stats.count}/${stats.limit} limit`;
+          } catch {}
+          container.innerHTML = `
+          <div style="margin-bottom:12px;font-size:13px;color:#94a3b8">${notesheets.length} saved notesheet${notesheets.length > 1 ? "s" : ""}${limitStr}</div>
+          <div id="ns-saved-list"></div>
+          <div id="ns-saved-viewer" style="display:none"></div>`;
+          const list = document.getElementById("ns-saved-list");
+          list.innerHTML = notesheets.map(n => `
+            <div class="card" style="margin-bottom:8px;cursor:pointer" onclick="openSavedNotesheet('${n.id}')">
+              <div style="font-weight:600;color:#e2e8f0;font-size:14px">${esc(n.title.replace(/^Notesheet:\s*/i, ""))}</div>
+              <div style="font-size:11px;color:#475569;margin-top:4px">${timeAgo(n.created_at)}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:4px">${esc((n.content || "").slice(0, 150))}${(n.content || "").length > 150 ? "..." : ""}</div>
+            </div>
+          `).join("");
+        } catch (e) {
+          container.innerHTML = `<div class="card" style="text-align:center;padding:20px;color:#f87171;font-size:13px">Failed to load notesheets: ${esc(e.message)}</div>`;
+        }
+      }
+
+      window.openSavedNotesheet = async function (id) {
+        const list = document.getElementById("ns-saved-list");
+        const viewer = document.getElementById("ns-saved-viewer");
+        if (!list || !viewer) return;
+        try {
+          const n = await apiGet("/api/notes/" + id);
+          if (!n || !n.content) {
+            viewer.innerHTML = '<div style="color:#f87171;font-size:13px;padding:20px">Notesheet content is empty.</div>';
+          } else {
+            _editingNotesheetId = id;
+            _lastNotesheetContent = n.content;
+            _lastNotesheetTitle = n.title || "Notesheet";
+            viewer.style.display = "block";
+
+            // Show a header with the title and a "Back to list" button
+            const displayTitle = (n.title || "Notesheet").replace(/^Notesheet:\s*/i, "");
+            viewer.innerHTML = `
+              <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+                <button onclick="closeSavedNotesheetViewer()" style="padding:6px 12px;border-radius:6px;border:1px solid #475569;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px">&larr; Back</button>
+                <span style="font-size:16px;font-weight:600;color:#e2e8f0">${esc(displayTitle)}</span>
+              </div>
+              <div id="ns-saved-result">${renderNotesheet(n.content)}</div>
+              <div style="margin-top:12px" class="ns-actions">
+                <button onclick="downloadNotesheetPDF()" class="ns-btn-pdf">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download PDF
+                </button>
+                <button onclick="saveNotesheetToDrive()" class="ns-btn-drive">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                  Save to Google Docs
+                </button>
+                <button onclick="deleteNotesheet('${n.id}')" style="padding:8px 16px;border-radius:8px;border:1px solid #ef4444;background:transparent;color:#ef4444;cursor:pointer;font-size:12px">Delete</button>
+              </div>
+              <div class="card" style="margin-top:16px">
+                <div style="font-size:14px;font-weight:600;margin-bottom:8px;color:#e2e8f0">Edit with AI</div>
+                <textarea id="ns-edit-input" rows="2" placeholder="e.g. Add 3 more practice problems, Simplify the explanation, Add more definitions..." style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-size:13px;outline:none;resize:vertical;font-family:inherit;margin-bottom:8px"></textarea>
+                <div style="display:flex;gap:8px">
+                  <button onclick="doEditNotesheet()" style="padding:8px 20px;border-radius:8px;border:none;background:#a78bfa;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Apply Edit</button>
+                  <span id="ns-edit-status" style="font-size:12px;color:#64748b;align-self:center"></span>
+                </div>
+              </div>`;
+            // Scroll viewer into view
+            viewer.scrollIntoView({ behavior: "smooth" });
+          }
+        } catch (e) {
+          viewer.innerHTML = `<div style="color:#f87171;font-size:13px;padding:20px">Error: ${esc(e.message)}</div>`;
+        }
+      };
+
+      window.closeSavedNotesheetViewer = function () {
+        const viewer = document.getElementById("ns-saved-viewer");
+        const list = document.getElementById("ns-saved-list");
+        if (viewer) viewer.style.display = "none";
+        if (list) list.style.display = "block";
+        _editingNotesheetId = null;
+      };
+
+      window.doEditNotesheet = async function () {
+        const input = document.getElementById("ns-edit-input");
+        const status = document.getElementById("ns-edit-status");
+        const viewer = document.getElementById("ns-saved-result");
+        if (!input || !status || !viewer) return;
+        const instruction = input.value.trim();
+        if (!instruction) {
+          status.textContent = "Enter an edit instruction";
+          return;
+        }
+        status.textContent = "Editing...";
+        try {
+          const r = await apiPost("/api/ai/notesheet/edit", {
+            content: _lastNotesheetContent,
+            instruction,
+          });
+          _lastNotesheetContent = r.content;
+          viewer.innerHTML = renderNotesheet(r.content);
+          status.textContent = "✓ Updated!";
+          status.style.color = "#34d399";
+          input.value = "";
+          // If editing a saved notesheet, update it in the backend too
+          if (_editingNotesheetId) {
+            const note = await apiGet("/api/notes/" + _editingNotesheetId);
+            await apiPut("/api/notes/" + _editingNotesheetId, {
+              title: note.title,
+              content: r.content,
+              tags: note.tags || [],
+            });
+          }
+        } catch (e) {
+          status.textContent = "Failed: " + e.message;
+          status.style.color = "#f87171";
+        }
+      };
+
+      window.deleteNotesheet = async function (id) {
+        const confirmed = await showConfirm("Delete Notesheet", "Are you sure you want to delete this notesheet?");
+        if (!confirmed) return;
+        try {
+          await apiDel("/api/notes/" + id);
+          addToast("success", "Notesheet deleted");
+          // Re-render saved notesheets list
+          _editingNotesheetId = null;
+          const container = document.getElementById("study-content");
+          if (container) renderSavedNotesheets(container);
+        } catch (e) {
+          addToast("error", "Failed to delete: " + e.message);
+        }
+      };
 
       // ── Toast Notifications ──────────────────────────────────────────────
       function addToast(type, msg, duration = 3000) {
@@ -2352,16 +2811,6 @@
           kbd: "Ctrl+4",
         },
         {
-          id: "nav-search",
-          label: "Go to Search",
-          icon: "🔍",
-          action: () => {
-            closePalette();
-            navigate("search");
-          },
-          kbd: "Ctrl+5",
-        },
-        {
           id: "nav-calc",
           label: "Go to Calculator",
           icon: "📊",
@@ -2405,11 +2854,12 @@
         },
         {
           id: "focus-search",
-          label: "Focus Search",
+          label: "Search Notes",
           icon: "🔎",
           action: () => {
             closePalette();
-            navigate("search");
+            navigate("notes");
+            setTimeout(focusNotesSearch, 400);
           },
           kbd: "Ctrl+F",
         },
@@ -2626,6 +3076,32 @@
         } catch (e) {
           addToast("error", "Export failed: " + e.message);
         }
+      };
+
+      // ── Bulk Delete Old Notes ──────────────────────────────────────────────
+      window.deleteOldNotes = async function () {
+        const sel = document.getElementById("settings-delete-age");
+        const status = document.getElementById("status-delete-old");
+        if (!sel || !status) return;
+        const days = parseInt(sel.value) || 30;
+        const confirmed = await showConfirm(
+          "Delete Old Notes",
+          `Delete all notes older than ${days} days? This includes notesheets. This action cannot be undone.`,
+        );
+        if (!confirmed) return;
+        status.textContent = "Deleting...";
+        const btn = document.getElementById("btn-delete-old");
+        if (btn) btn.disabled = true;
+        try {
+          await apiPost("/api/notes/delete-old", { older_than_days: days });
+          status.textContent = `✓ Deleted notes older than ${days} days`;
+          status.style.color = "#34d399";
+          invalidateStatsCache();
+        } catch (e) {
+          status.textContent = "Failed: " + e.message;
+          status.style.color = "#f87171";
+        }
+        if (btn) btn.disabled = false;
       };
 
       // ── Study Timer ────────────────────────────────────────────────────────
@@ -2870,7 +3346,8 @@
         // Ctrl+F: focus search
         if ((e.ctrlKey || e.metaKey) && e.key === "f" && !inInput) {
           e.preventDefault();
-          navigate("search");
+          navigate("notes");
+          setTimeout(focusNotesSearch, 400);
           return;
         }
         // Ctrl+S: save note (when in note editor)
@@ -2910,7 +3387,6 @@
             "notes",
             "todos",
             "bookmarks",
-            "search",
             "calculator",
             "study",
             "settings",
@@ -3191,10 +3667,23 @@
             el.textContent = `online (${ms}ms)`;
             el.style.color = "#34d399";
             el.style.background = "rgba(52,211,153,0.1)";
+            el.title = "";
           }
         } catch {
           _isOnline = false;
           updateConnectionUI();
+          // If on a remote host (not localhost) and API_BASE is empty, hint at Settings
+          if (
+            !API_BASE &&
+            !window.location.hostname.includes("localhost") &&
+            !window.location.hostname.includes("127.0.0.1")
+          ) {
+            addToast(
+              "warning",
+              'Backend not reachable. Set your API URL in Settings → Backend.',
+              6000,
+            );
+          }
         }
       }
 
@@ -3263,7 +3752,21 @@
       // ── View: Notes ─────────────────────────────────────────────────────
       async function renderNotes(container) {
         const isCompact = _compactMode.notes;
-        container.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px"><h3 style="font-size:15px;font-weight:600">All Notes</h3><div style="display:flex;gap:6px;align-items:center"><button onclick="toggleSort('notes','title')" class="sort-btn ${_sortState.notes === "title" ? "active" : ""}">A-Z</button><button onclick="toggleSort('notes','updated')" class="sort-btn ${_sortState.notes === "updated" || !_sortState.notes ? "active" : ""}">Date</button><button onclick="_compactMode.notes=!_compactMode.notes;renderView('notes')" class="sort-btn" title="Toggle compact view">${isCompact ? "⊞" : "⊟"}</button><button onclick="showNoteEditor()" style="padding:8px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:500">+ New Note</button></div></div><div id="notes-list" class="${isCompact ? "compact" : ""}"></div>`;
+        container.innerHTML = `
+        <div style="margin-bottom:12px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input id="notes-search-input" placeholder="Search notes by meaning (e.g. 'machine learning concepts')..." style="flex:1;min-width:150px;padding:10px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doSearchInNotes()" oninput="onNotesSearchInput()" value="${esc(_notesSearchQuery)}">
+            <button onclick="doSearchInNotes()" style="padding:10px 20px;border-radius:8px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:500">Search</button>
+            <button onclick="_notesSearchLocalOnly=!_notesSearchLocalOnly;addToast('info',_notesSearchLocalOnly?'Local filter ON':'Full search')" class="sort-btn ${_notesSearchLocalOnly ? "active" : ""}" title="Toggle local filtering">${_notesSearchLocalOnly ? "Local" : "Server"}</button>
+            ${_notesSearchActive ? '<button onclick="clearNotesSearch()" class="sort-btn">✕ Clear</button>' : ""}
+          </div>
+          <p style="font-size:11px;color:#475569;margin-top:6px">Semantic search via ChromaDB + sentence-transformers. Toggle <strong>Local</strong> to filter client-side.</p>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px"><h3 style="font-size:15px;font-weight:600">All Notes</h3><div style="display:flex;gap:6px;align-items:center"><button onclick="toggleSort('notes','title')" class="sort-btn ${_sortState.notes === "title" ? "active" : ""}">A-Z</button><button onclick="toggleSort('notes','updated')" class="sort-btn ${_sortState.notes === "updated" || !_sortState.notes ? "active" : ""}">Date</button><button onclick="_compactMode.notes=!_compactMode.notes;renderView('notes')" class="sort-btn" title="Toggle compact view">${isCompact ? "⊞" : "⊟"}</button><button onclick="showNoteEditor()" style="padding:8px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:500">+ New Note</button><button onclick="deleteAllNotes()" style="padding:6px 12px;border-radius:8px;border:1px solid #ef4444;background:transparent;color:#ef4444;cursor:pointer;font-size:11px">Delete All</button></div></div><div id="notes-list" class="${isCompact ? "compact" : ""}"></div>`;
+        if (_notesSearchActive) {
+          doSearchInNotes(true);
+          return;
+        }
         const notes = sortItems(await apiGet("/api/notes"), "notes");
         const list = document.getElementById("notes-list");
         if (notes.length === 0) {
@@ -3413,6 +3916,77 @@
         await apiDel("/api/notes/" + id);
         addToast("info", "Note deleted. Press Ctrl+Z to undo.");
         navigate("notes");
+      };
+
+      // ── Notes search + bulk delete ─────────────────────────────────────
+      window.focusNotesSearch = function () {
+        const input = document.getElementById("notes-search-input");
+        if (input) { input.focus(); input.select(); }
+      };
+      window.onNotesSearchInput = function () {
+        clearTimeout(_searchDebounce);
+        const q = document.getElementById("notes-search-input")?.value.trim();
+        if (!q) {
+          _notesSearchActive = false;
+          _notesSearchQuery = "";
+          renderView("notes");
+          return;
+        }
+        _searchDebounce = setTimeout(() => doSearchInNotes(), 400);
+      };
+      window.doSearchInNotes = async function (skipFocus) {
+        const q = document.getElementById("notes-search-input")?.value.trim();
+        if (!q) { clearNotesSearch(); return; }
+        _notesSearchActive = true;
+        _notesSearchQuery = q;
+        const list = document.getElementById("notes-list");
+        if (!list) return;
+        list.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:#64748b;font-size:13px;padding:20px"><div class="spinner-dot"></div><div class="spinner-dot"></div><div class="spinner-dot"></div> Searching...</div>';
+        try {
+          let results;
+          if (_notesSearchLocalOnly) {
+            const notes = (await dbGetAll("notes")) || [];
+            const ql = q.toLowerCase();
+            results = notes.filter((n) => (n.title || "").toLowerCase().includes(ql) || (n.content || "").toLowerCase().includes(ql)).map((n) => ({ ...n, score: 1 }));
+          } else {
+            results = await apiGet("/api/search?q=" + encodeURIComponent(q));
+          }
+          if (results.length === 0) {
+            list.innerHTML = '<div class="card" style="text-align:center;color:#64748b;padding:40px"><p>No results found. Try a different search.</p></div>';
+            return;
+          }
+          list.innerHTML = results.map((x) =>
+            `<div class="card" style="margin-bottom:8px;cursor:pointer" onclick="showNoteEditor('${x.id}')"><div style="display:flex;justify-content:space-between;align-items:start"><div style="font-weight:600;color:#e2e8f0">${highlightText(x.title || "Untitled", q)}</div><span style="font-size:10px;color:#64748b;background:#334155;padding:2px 8px;border-radius:10px">${(x.score || 0).toFixed(4)}</span></div><div style="font-size:12px;color:#94a3b8;margin-top:4px">${highlightText((x.content || "").slice(0, 300), q)}</div></div>`
+          ).join("");
+          if (!skipFocus) {
+            const input = document.getElementById("notes-search-input");
+            if (input) input.focus();
+          }
+        } catch (e) {
+          list.innerHTML = `<div style="color:#f87171;font-size:13px;padding:20px;text-align:center">Search failed: ${esc(e.message)}<br><button onclick="clearNotesSearch()" style="margin-top:8px;padding:6px 16px;border-radius:8px;border:1px solid #475569;background:transparent;color:#e2e8f0;cursor:pointer;font-size:12px">Back to notes</button></div>`;
+        }
+      };
+      window.clearNotesSearch = function () {
+        _notesSearchActive = false;
+        _notesSearchQuery = "";
+        renderView("notes");
+      };
+      window.deleteAllNotes = async function () {
+        const confirmed = await showConfirm("Delete All Notes", "This will permanently delete ALL your notes. This action cannot be undone.");
+        if (!confirmed) return;
+        try {
+          const notes = await apiGet("/api/notes");
+          if (!notes || notes.length === 0) { addToast("info", "No notes to delete."); return; }
+          for (let i = 0; i < notes.length; i++) {
+            addToast("info", `Deleting note ${i + 1} of ${notes.length}...`, 2000);
+            try { await apiDel("/api/notes/" + notes[i].id); } catch {}
+          }
+          invalidateStatsCache();
+          addToast("success", `Deleted ${notes.length} notes.`);
+          renderView("notes");
+        } catch (e) {
+          addToast("error", "Failed to delete notes: " + e.message);
+        }
       };
 
       // ── View: To-Dos ────────────────────────────────────────────────────
@@ -3660,6 +4234,9 @@
       // ── View: Search ────────────────────────────────────────────────────
       let _searchDebounce = null;
       let _searchLocalOnly = false;
+      let _notesSearchActive = false;
+      let _notesSearchQuery = "";
+      let _notesSearchLocalOnly = false;
       function highlightText(text, query) {
         if (!query) return esc(text);
         const words = query.split(/\s+/).filter(Boolean);
@@ -3908,6 +4485,7 @@
           <button id="stab-notesheet" class="study-tab active" onclick="switchStudyTab('notesheet')">Notesheet</button>
           <button id="stab-quiz" class="study-tab" onclick="switchStudyTab('quiz')">Quiz</button>
           <button id="stab-timer" class="study-tab" onclick="switchStudyTab('timer')">Timer</button>
+          <button id="stab-saved" class="study-tab" onclick="switchStudyTab('saved')">Saved Notesheets</button>
         </div>
         <div id="study-content"></div>`;
         renderStudyTab();
@@ -3927,6 +4505,10 @@
         const el = document.getElementById("study-content");
         if (!el) return;
         setTimeout(initDropZone, 50); // init drag-drop after DOM update
+        if (_studyTab === "saved") {
+          renderSavedNotesheets(el);
+          return;
+        }
         if (_studyTab === "timer") {
           const total = _timerState.focusLen;
           const remaining = Math.max(0, total - _timerState.seconds);
@@ -4049,10 +4631,9 @@
           });
           status.textContent = "✓ Saved to Notes!";
           status.style.color = "#34d399";
-          result.innerHTML =
-            '<div class="card" style="white-space:pre-wrap;font-size:13px;color:#94a3b8;line-height:1.7">' +
-            esc(r.content) +
-            "</div>";
+          _lastNotesheetContent = r.content;
+          _lastNotesheetTitle = topic || "Notesheet";
+          result.innerHTML = renderNotesheet(r.content) + addNotesheetActions();
         } catch (e) {
           status.textContent = "Failed: " + e.message;
           status.style.color = "#f87171";
@@ -4108,10 +4689,9 @@
           if (finalNote) {
             status.textContent = "✓ Saved to Notes!";
             status.style.color = "#34d399";
-            result.innerHTML =
-              '<div class="card" style="white-space:pre-wrap;font-size:13px;color:#94a3b8;line-height:1.7">' +
-              esc(finalNote.content) +
-              "</div>";
+            _lastNotesheetContent = finalNote.content;
+            _lastNotesheetTitle = finalNote.title || "YouTube Notesheet";
+            result.innerHTML = renderNotesheet(finalNote.content) + addNotesheetActions();
           } else {
             status.textContent = "Failed: no result";
             status.style.color = "#f87171";
@@ -4233,10 +4813,9 @@
             status.textContent = "✓ Saved to Notes!";
             status.style.color = "#34d399";
             addToast("success", "Notesheet saved!");
-            result.innerHTML =
-              '<div class="card" style="white-space:pre-wrap;font-size:13px;color:#94a3b8;line-height:1.7">' +
-              esc(noteData.content) +
-              "</div>";
+            _lastNotesheetContent = noteData.content;
+            _lastNotesheetTitle = noteData.title || (_nsPDFFile ? _nsPDFFile.name.replace(/\.pdf$/i, "") : "PDF Notesheet");
+            result.innerHTML = renderNotesheet(noteData.content) + addNotesheetActions();
             // Clear PDF selection
             window._nsPDFFile = null;
             document.getElementById("ns-pdf").value = "";
@@ -4526,6 +5105,10 @@
           localStorage.removeItem("kd-auth");
         } catch {}
         document.getElementById("login-overlay").style.display = "flex";
+        document.getElementById("login-landing").style.display = "block";
+        document.getElementById("login-auth-form").style.display = "none";
+        document.getElementById("login-confirmation").style.display = "none";
+        document.getElementById("auth-error").textContent = "";
       }
       window.handleSignOut = handleSignOut;
 
@@ -4707,15 +5290,34 @@
           </div>
         </div>
         <div class="settings-section">
+          <h3>Data Management</h3>
+          <div style="font-size:13px;color:#94a3b8;line-height:1.6">
+            <p>Delete notes newer than:</p>
+            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
+              <select id="settings-delete-age" style="padding:8px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:13px;outline:none">
+                <option value="7">7 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">6 months</option>
+                <option value="365">1 year</option>
+              </select>
+              <button onclick="deleteOldNotes()" class="sort-btn" style="border-color:#ef4444;color:#ef4444;font-size:12px" id="btn-delete-old">Delete Old Notes</button>
+              <span id="status-delete-old" style="font-size:12px;color:#64748b"></span>
+            </div>
+            <p style="font-size:11px;color:#64748b;margin-top:6px">Permanently deletes notes (including notesheets) older than the selected duration. <strong style="color:#ef4444">This cannot be undone.</strong></p>
+          </div>
+        </div>
+        <div class="settings-section">
           <h3>Backend</h3>
           <div style="font-size:13px;color:#94a3b8;line-height:1.6">
             <p>API Server: <strong id="settings-api-display">${API_BASE || "(same origin)"}</strong></p>
             <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-              <input id="settings-api-input" placeholder="http://localhost:8001" style="flex:1;min-width:150px;padding:8px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:12px;outline:none">
+              <input id="settings-api-input" placeholder="https://xxxx.trycloudflare.com" style="flex:1;min-width:150px;padding:8px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:12px;outline:none">
               <button onclick="setApiBase()" class="sort-btn" style="font-size:12px">Set</button>
               <button onclick="clearApiBase()" class="sort-btn" style="font-size:12px">Reset</button>
             </div>
-            <p style="font-size:11px;color:#64748b;margin-top:6px">Set a custom backend URL if running FastAPI on a different port or via tunnel. Leave empty for same-origin.</p>
+            <p style="font-size:11px;color:#64748b;margin-top:6px">Running on Cloudflare Pages? Paste your tunnel URL (e.g. <code style="color:#0ea5e9">https://xxx.trycloudflare.com</code>) here. Leave empty for same-origin (localhost).</p>
+            <p style="font-size:11px;color:#f59e0b;margin-top:4px" id="settings-api-hint"></p>
           </div>
         </div>
         <div class="settings-section">
@@ -4735,6 +5337,19 @@
             }
           </div>
         </div>`;
+        // Show backend hint when on remote host without explicit API_BASE
+        if (
+          !API_BASE &&
+          !window.location.hostname.includes("localhost") &&
+          !window.location.hostname.includes("127.0.0.1") &&
+          !window.location.hostname.includes("0.0.0.0")
+        ) {
+          const hint = document.getElementById("settings-api-hint");
+          if (hint) {
+            hint.innerHTML =
+              '⚠️ No backend URL configured — PDF notesheets, search, and study features need one. Paste your tunnel URL above.';
+          }
+        }
       }
 
       function proceedAsGuest() {

@@ -184,6 +184,16 @@ class YouTubeRequest(BaseModel):
     url: str
     topic: str = ""
 
+class AIEditNotesheetRequest(BaseModel):
+    content: str
+    instruction: str
+
+class BulkDeleteNotesRequest(BaseModel):
+    older_than_days: int
+    title_prefix: str = ""
+
+NOTESHEET_LIMIT = 50  # max notesheets per account
+
 
 # ── Utility ────────────────────────────────────────────────────────────────
 
@@ -370,6 +380,14 @@ async def search_notes_stream(q: str = Query("", min_length=1)):
 OLLAMA_HOST = "http://100.65.172.94:11434"
 OLLAMA_MODEL = "qwen3:8b"
 
+async def _count_notesheets(db) -> int:
+    """Count existing notesheets (notes with title starting with 'Notesheet:')."""
+    rows = await db.execute_fetchall(
+        "SELECT COUNT(*) FROM notes WHERE title LIKE 'Notesheet:%'"
+    )
+    return rows[0][0] if rows else 0
+
+
 async def _ollama_generate(prompt: str, system: str = "") -> str:
     """Call Ollama and return the generated text."""
     async with httpx.AsyncClient(timeout=120.0) as client:
@@ -454,18 +472,26 @@ async def _generate_notesheet_from_text(text: str, topic: str) -> tuple[str, str
     max_chars = 8000
     truncated = text[:max_chars] if len(text) > max_chars else text
 
-    system = "You are a math tutor creating clear, structured study notes. Use bullet points, examples, and definitions."
+    system = "You are a math tutor creating clear, visually structured study notes. Use markdown tables, definition blocks, formula blocks, and organized formatting."
     prompt = f"""Create comprehensive study notes from the following lesson material on: {topic}
 
 Lesson material:
 {truncated}
 
 Format the notes with:
-- Key definitions and formulas
-- Step-by-step examples
-- Common mistakes to avoid
-- Practice problems (with answers)
-Use markdown formatting with headers (##), bullet points, and numbered lists."""
+- **Key definitions** — each term as a bold heading, then its definition
+- **Formulas** — in clearly labeled sections
+- **Step-by-step examples** — numbered steps
+- **Tips / Common mistakes** — highlighted for emphasis
+- **Practice problems** — with answers
+
+Use markdown formatting:
+- `##` for major sections, `###` for subsections
+- `|` tables to compare terms, formulas, or properties
+- Bullet points and numbered lists for steps
+- Use **bold** for key terms
+
+Make the notes visually organized and easy to scan at a glance."""
 
     raw = await _ollama_generate(prompt, system)
     cleaned = raw.split(" response")[-1] if " response" in raw else raw
@@ -490,6 +516,12 @@ async def pdf_notesheet_stream(
         raise HTTPException(400, "Only PDF files are supported")
 
     async def event_stream():
+        # ── Stage 0: check limit
+        db = app.state.db
+        count = await _count_notesheets(db)
+        if count >= NOTESHEET_LIMIT:
+            yield _sse({"stage": "error", "progress": 0, "message": f"Notesheet limit reached (max {NOTESHEET_LIMIT}). Delete old notesheets to create more."})
+            return
         # ── Stage 1: save PDF
         yield _sse({"stage": "saving", "progress": 5, "message": "Reading PDF..."})
 
@@ -558,16 +590,28 @@ def _sse(data: dict) -> str:
 @app.post("/api/ai/notesheet", status_code=201)
 async def generate_notesheet(req: AINotesheetRequest):
     """Generate a structured notesheet from a topic using AI, save as a note."""
-    system = "You are a math tutor creating clear, structured study notes. Use bullet points, examples, and definitions."
+    db = app.state.db
+    count = await _count_notesheets(db)
+    if count >= NOTESHEET_LIMIT:
+        raise HTTPException(429, f"Notesheet limit reached (max {NOTESHEET_LIMIT}). Delete old notesheets to create more.")
+    system = "You are a math tutor creating clear, visually structured study notes. Use markdown tables, definition blocks, formula blocks, and organized formatting."
     source = f"\n\nSource material:\n{req.source_text}" if req.source_text else ""
     prompt = f"""Create comprehensive study notes for: {req.topic}{source}
 
 Format the notes with:
-- Key definitions and formulas
-- Step-by-step examples
-- Common mistakes to avoid
-- Practice problems (with answers)
-Use markdown formatting with headers (##), bullet points, and numbered lists."""
+- **Key definitions** — each term as a bold heading, then its definition
+- **Formulas** — in clearly labeled sections
+- **Step-by-step examples** — numbered steps
+- **Tips / Common mistakes** — highlighted for emphasis
+- **Practice problems** — with answers
+
+Use markdown formatting:
+- `##` for major sections, `###` for subsections
+- `|` tables to compare terms, formulas, or properties
+- Bullet points and numbered lists for steps
+- Use **bold** for key terms
+
+Make the notes visually organized and easy to scan at a glance."""
     raw = await _ollama_generate(prompt, system)
     # Clean up thinking tags if present
     cleaned = raw.split("<｜end▁of▁thinking｜>")[-1] if "response" in raw else raw
@@ -577,7 +621,6 @@ Use markdown formatting with headers (##), bullet points, and numbered lists."""
     content = cleaned
 
     # Save as a note
-    db = app.state.db
     note_id = str(uuid.uuid4())
     now = _now()
     await db.execute(
@@ -641,6 +684,12 @@ async def youtube_notesheet_stream(req: YouTubeRequest):
     via SSE for live progress."""
 
     async def event_stream():
+        # Check notesheet limit
+        db = app.state.db
+        count = await _count_notesheets(db)
+        if count >= NOTESHEET_LIMIT:
+            yield _sse({"stage": "error", "progress": 0, "message": f"Notesheet limit reached (max {NOTESHEET_LIMIT}). Delete old notesheets to create more."})
+            return
         yield _sse({"stage": "fetching", "progress": 5, "message": "Fetching video info…"})
 
         import yt_dlp
@@ -942,6 +991,55 @@ async def serve_spa():
         content=html,
         headers={"Cache-Control": "public, max-age=3600"},
     )
+
+
+# ── AI: Edit Notesheet ────────────────────────────────────────────────────
+
+@app.post("/api/ai/notesheet/edit")
+async def edit_notesheet(req: AIEditNotesheetRequest):
+    """Edit an existing notesheet using AI. Takes the current content and an
+    instruction, returns edited content."""
+    system = "You are a math tutor editing study notes. Preserve all existing content unless the user asks to change it."
+    prompt = f"""Here are some study notes:
+
+{req.content}
+
+Edit these notes according to this instruction: {req.instruction}
+
+Return the COMPLETE edited notes in markdown format. Do not truncate or summarize — return the full content with the requested changes applied."""
+    raw = await _ollama_generate(prompt, system)
+    cleaned = raw.split(" response")[-1] if " response" in raw else raw
+    cleaned = cleaned.replace(" response", "").strip()
+    return {"content": cleaned}
+
+
+# ── Bulk Delete ───────────────────────────────────────────────────────────
+
+@app.post("/api/notes/delete-old")
+async def delete_old_notes(req: BulkDeleteNotesRequest):
+    """Delete notes older than N days. Optionally filter by title prefix."""
+    db = app.state.db
+    cutoff = _now()  # we'll compute date comparison in sqlite
+    # SQLite: use datetime('now', '-N days') for comparison
+    query = "DELETE FROM notes WHERE created_at < datetime('now', '-' || ? || ' days')"
+    params = [str(req.older_than_days)]
+    if req.title_prefix:
+        query += " AND title LIKE ?"
+        params.append(req.title_prefix + "%")
+    await db.execute(query, params)
+    await db.commit()
+    # Also get count of what was deleted
+    return {"ok": True}
+
+
+# ── Notesheet Stats ───────────────────────────────────────────────────────
+
+@app.get("/api/notesheet/stats")
+async def get_notesheet_stats():
+    """Return notesheet count and limit."""
+    db = app.state.db
+    count = await _count_notesheets(db)
+    return {"count": count, "limit": NOTESHEET_LIMIT}
 
 
 # ── Run (for local dev) ────────────────────────────────────────────────────
