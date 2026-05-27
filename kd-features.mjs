@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 
-const URL = "https://knowledge-dashboard-zeta.vercel.app";
+const URL = "https://skillstack-learn.vercel.app";
 
 async function wait(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -36,7 +36,7 @@ async function run() {
 
   // ── Test 2: Settings renders theme cards ──
   const themeCards = await page.locator(".theme-card").count();
-  if (themeCards === 3) ok("3 theme cards visible");
+  if (themeCards === 7) ok("7 theme/background cards visible");
   else fail("Theme cards: " + themeCards);
 
   // ── Test 3: Settings renders accent color swatches ──
@@ -153,14 +153,14 @@ async function run() {
   if (isSignUp && confirmVisible) ok("Toggle to sign-up shows confirm field");
   else fail("Sign-up toggle: " + isSignUp + " confirm:" + confirmVisible);
 
-  // Back to landing
-  await cleanPage.click('button:has-text("Back")');
+  // Back to sign-in mode
+  await cleanPage.click("#auth-form-back");
   await wait(300);
-  const landingVisible = await cleanPage.evaluate(
-    () => document.getElementById("login-landing").style.display !== "none",
+  const backToSignin = await cleanPage.evaluate(
+    () => document.getElementById("login-auth-mode").dataset.mode === "signin",
   );
-  if (landingVisible) ok("Back button returns to landing");
-  else fail("Back button did not show landing");
+  if (backToSignin) ok("Back button returns to sign-in mode");
+  else fail("Back button did not switch to sign-in mode");
 
   await cleanContext.close();
 

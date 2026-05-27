@@ -13,5 +13,3 @@ sentence-transformers==3.4.1
 # Templates (for initial server-rendered fallback)
 jinja2==3.1.5
 
-# CORS for local dev behind Cloudflare Tunnel
-# In production, Cloudflare handles headers

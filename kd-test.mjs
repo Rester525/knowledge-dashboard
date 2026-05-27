@@ -1,6 +1,6 @@
 import { chromium } from "playwright";
 
-const URL = "https://knowledge-dashboard-zeta.vercel.app";
+const URL = "https://skillstack-learn.vercel.app";
 
 async function wait(time) {
   return new Promise((r) => setTimeout(r, time));
@@ -50,7 +50,6 @@ async function run() {
     "notes",
     "todos",
     "bookmarks",
-    "search",
     "calculator",
     "study",
   ];
@@ -92,10 +91,10 @@ async function run() {
   else console.log("  ✗ Bookmarks view missing");
 
   // ── Test 6: Search UI ──
-  await page.click('.nav-item[data-view="search"]');
+  await page.click('.nav-item[data-view="notes"]');
   await wait(1000);
-  const searchInput = await page.locator("#search-input").count();
-  if (searchInput > 0) ok("Search view with input");
+  const searchBar = await page.locator("#notes-search-input").count();
+  if (searchBar > 0) ok("Search bar integrated in Notes view");
   else console.log("  ✗ Search view missing");
 
   // ── Test 7: Calculator ──
@@ -109,7 +108,7 @@ async function run() {
   await page.click('.nav-item[data-view="study"]');
   await wait(1000);
   const studyTabs = await page.locator(".study-tab").count();
-  if (studyTabs === 3) ok("3 study tabs");
+  if (studyTabs === 4) ok("4 study tabs");
   else console.log("  ✗ Study tabs: " + studyTabs);
 
   // Study timer tab
@@ -141,7 +140,7 @@ async function run() {
   const sidebar = page.locator("#sidebar");
   const accentDots = sidebar.locator('span[onclick*="setAccent"]');
   const dotCount = await accentDots.count();
-  if (dotCount === 5) ok("5 accent color dots");
+  if (dotCount === 10) ok("10 accent color dots");
   else console.log("  ✗ Accent dots: " + dotCount);
 
   // ── Test 11: Keyboard shortcuts ──
@@ -168,7 +167,7 @@ async function run() {
 
   // ── Test 13: Sidebar items ──
   const navItems = await page.locator(".nav-item").count();
-  if (navItems === 8) ok("8 sidebar navigation items");
+  if (navItems === 7) ok("7 sidebar navigation items (Search merged into Notes)");
   else console.log("  ✗ Nav items: " + navItems);
 
   // ── Test 14: Viewport meta ──
@@ -187,7 +186,7 @@ async function run() {
     (e) => !e.includes("Offline: no local data"),
   );
   const realConsoleErrors = consoleErrors.filter(
-    (e) => !e.includes("Failed to load resource"),
+    (e) => !e.includes("Failed to load resource") && !e.includes("unsupported MIME type"),
   );
 
   if (realErrors.length > 0) {

@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 import { writeFileSync } from "fs";
 
-const URL = "https://knowledge-dashboard-zeta.vercel.app";
+const URL = "https://skillstack-learn.vercel.app";
 
 async function wait(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -14,7 +14,6 @@ async function run() {
   });
   await context.addInitScript(() => {
     localStorage.setItem("kd-auth", "guest");
-    localStorage.setItem("kd-api-base", "https://nov-lib-axis-protein.trycloudflare.com");
   });
   const page = await context.newPage();
   const pageErrors = [];

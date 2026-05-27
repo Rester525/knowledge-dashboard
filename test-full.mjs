@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 
-const URL = 'https://knowledge-dashboard-zeta.vercel.app';
+const URL = 'https://skillstack-learn.vercel.app';
 
 async function wait(time) { return new Promise(r => setTimeout(r, time)); }
 

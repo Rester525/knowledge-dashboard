@@ -21,7 +21,7 @@ WHY FASTER:
     another embeds text, another serialises JSON — all in the same process.
   • StreamingResponse — vector search results stream back as they're computed.
   • Static path optimisation — /static/ files carry Cache-Control: public, max-age=31536000
-    so Cloudflare edge caches them for a year without revalidation.
+    so CDN edge caches them for a year without revalidation.
   • Late-binding model load — the sentence-transformer model isn't imported
     until the first /api/search call, keeping the hot path lean.
 """
@@ -72,7 +72,14 @@ app = FastAPI(title="Knowledge Dashboard", version="2.0.0", lifespan=lifespan)
 # ── CORS + Private Network Access (allow Vercel SPA → localhost backend) ──
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://skillstack-learn.vercel.app",
+        "https://skillstack-kd.vercel.app",
+        "http://localhost:8000",
+        "http://localhost:5173",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -309,10 +316,10 @@ async def search_notes_endpoint(q: str = Query("", min_length=1)):
       2. ChromaDB's HNSW index gives O(log n) lookup.
       3. The search runs in asyncio.to_thread — event loop stays free.
       4. Results are returned as a JSONResponse with Cache-Control: no-cache
-         so Cloudflare never caches stale search results.
+         so the CDN never caches stale search results.
 
-    CLOUDFLARE EDGE BEHAVIOUR:
-      Page Rules bypass cache for /api/search/*. Every request hits the
+    EDGE BEHAVIOUR:
+      Search results bypass cache. Every request hits the
       origin server directly — no stale vector results.
     """
     from search_engine import search_notes
@@ -346,8 +353,8 @@ async def search_notes_stream(q: str = Query("", min_length=1)):
     """Stream search results as they're computed.
 
     WHY STREAM: For large result sets, the user sees the first hit in
-    ~ 200 ms instead of waiting for all results + ranking. Cloudflare
-    proxies SSE without buffering when chunked transfer encoding is used.
+    ~ 200 ms instead of waiting for all results + ranking. CDNs
+    proxy SSE without buffering when chunked transfer encoding is used.
     """
 
     async def event_stream():
@@ -982,8 +989,8 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 async def serve_spa():
     """Serve index.html.
 
-    CLOUDFLARE OPTIMISATION: This route returns Cache-Control: public, max-age=3600
-    so Cloudflare edge caches the HTML for 1 hour. For a single-user dashboard
+    CACHE OPTIMISATION: This route returns Cache-Control: public, max-age=3600
+    so CDN edge caches the HTML for 1 hour. For a single-user dashboard
     where the HTML rarely changes, this drastically reduces origin load.
     """
     html = (TEMPLATES_DIR / "index.html").read_text()

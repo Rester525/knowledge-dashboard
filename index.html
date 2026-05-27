@@ -1856,7 +1856,7 @@
                 color: #64748b;
                 cursor: pointer;
               "
-              title="Click to configure backend in Settings"
+              title="Settings"
               >connecting...</span
             >
           </div>
@@ -1887,43 +1887,7 @@
 
     <script>
       // ── Config ──────────────────────────────────────────────────────────
-      // When served through Cloudflare Pages, the FastAPI backend runs either
-      // locally or via Cloudflare Tunnel. In dev, point to localhost:8000.
-      const API_BASE = (() => {
-        // Allow override via localStorage (settable from Settings or devtools)
-        try {
-          const stored = localStorage.getItem("kd-api-base");
-          if (stored) return stored;
-        } catch {}
-        // Auto-detect: on localhost the FastAPI backend serves both SPA + API
-        if (
-          window.location.origin.includes("localhost") ||
-          window.location.hostname === "127.0.0.1" ||
-          window.location.hostname === "0.0.0.0"
-        )
-          return ""; // same-origin — SPA is served by FastAPI
-        // Default: same-origin. On Vercel, set your tunnel URL in Settings → Backend.
-        return "";
-      })();
-
-      // Allow user to set/clear API_BASE at runtime from Settings
-      window.setApiBase = function () {
-        const input = document.getElementById("settings-api-input");
-        const val = input?.value.trim() || "";
-        try {
-          localStorage.setItem("kd-api-base", val);
-        } catch {}
-        addToast("info", "API base set to " + (val || "(same origin)") + " — reloading...");
-        setTimeout(() => location.reload(), 1000);
-      };
-      window.clearApiBase = function () {
-        try {
-          localStorage.removeItem("kd-api-base");
-        } catch {}
-        addToast("info", "API base reset — reloading...");
-        setTimeout(() => location.reload(), 1000);
-      };
-
+      const API_BASE = "http://localhost:8000";
       // ── API Client (offline-aware) ──────────────────────────────────────
       let _isOnline = navigator.onLine;
       function isEntityPath(path) {
@@ -3775,7 +3739,7 @@ ${body}
           ) {
             addToast(
               "warning",
-              'Backend not reachable. Set your API URL in Settings → Backend.',
+              'Backend not reachable. Make sure the FastAPI server is running on http://localhost:8000.',
               6000,
             );
           }
@@ -4796,7 +4760,7 @@ ${body}
           status.style.color = "#f87171";
           const isNetworkError = e.message === "Failed to fetch" || e.message.includes("NetworkError") || e.message.includes("network");
           const hint = isNetworkError
-            ? '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Go to <strong>Settings → Backend</strong> and make sure the API Server URL points to your active Cloudflare Tunnel URL. Start the tunnel with: <code style="color:#0ea5e9">cloudflared tunnel --url http://localhost:8000</code></p>'
+            ? '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Make sure the FastAPI server is running on http://localhost:8000.</p>'
             : "";
           result.innerHTML = errorHTML(e.message) + hint;
         }
@@ -4937,7 +4901,7 @@ ${body}
           status.style.color = "#f87171";
           const isNetworkError = e.message === "Failed to fetch" || e.message.includes("NetworkError") || e.message.includes("network");
           const hint = isNetworkError
-            ? '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Go to <strong>Settings → Backend</strong> and make sure the API Server URL points to your active Cloudflare Tunnel URL.</p>'
+            ? '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Make sure the FastAPI server is running on http://localhost:8000.</p>'
             : "";
           result.innerHTML = errorHTML(e.message) + hint;
         }
@@ -5430,19 +5394,6 @@ ${body}
           </div>
         </div>
         <div class="settings-section">
-          <h3>Backend</h3>
-          <div style="font-size:13px;color:#94a3b8;line-height:1.6">
-            <p>API Server: <strong id="settings-api-display">${API_BASE || "(same origin)"}</strong></p>
-            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-              <input id="settings-api-input" placeholder="https://xxxx.trycloudflare.com" style="flex:1;min-width:150px;padding:8px 12px;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:12px;outline:none">
-              <button onclick="setApiBase()" class="sort-btn" style="font-size:12px">Set</button>
-              <button onclick="clearApiBase()" class="sort-btn" style="font-size:12px">Reset</button>
-            </div>
-            <p style="font-size:11px;color:#64748b;margin-top:6px">Running on Cloudflare Pages? Paste your tunnel URL (e.g. <code style="color:#0ea5e9">https://xxx.trycloudflare.com</code>) here. Leave empty for same-origin (localhost).</p>
-            <p style="font-size:11px;color:#f59e0b;margin-top:4px" id="settings-api-hint"></p>
-          </div>
-        </div>
-        <div class="settings-section">
           <h3>Account</h3>
           <div style="font-size:13px;color:#94a3b8;line-height:1.6">
             <p>Mode: <strong>${_isCloudUser ? "Cloud (Supabase)" : "Local (Guest)"}</strong></p>
@@ -5459,19 +5410,6 @@ ${body}
             }
           </div>
         </div>`;
-        // Show backend hint when on remote host without explicit API_BASE
-        if (
-          !API_BASE &&
-          !window.location.hostname.includes("localhost") &&
-          !window.location.hostname.includes("127.0.0.1") &&
-          !window.location.hostname.includes("0.0.0.0")
-        ) {
-          const hint = document.getElementById("settings-api-hint");
-          if (hint) {
-            hint.innerHTML =
-              '⚠️ No backend URL configured — notesheets, search, and AI features need one. Start a tunnel with <code style="color:#0ea5e9">cloudflared tunnel --url http://localhost:8000</code> on your server, then paste the tunnel URL above.';
-          }
-        }
       }
 
       function proceedAsGuest() {
