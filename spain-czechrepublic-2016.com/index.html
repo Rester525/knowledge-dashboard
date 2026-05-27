@@ -6,11 +6,11 @@
     <meta name="color-scheme" content="dark" />
     <meta
       name="description"
-      content="Knowledge Dashboard — Personal study analytics and knowledge management"
+      content="Skillstack — Personal study analytics and knowledge management"
     />
     <meta name="theme-color" content="#0ea5e9" />
     <!-- Open Graph / Social -->
-    <meta property="og:title" content="Knowledge Dashboard" />
+    <meta property="og:title" content="Skillstack" />
     <meta
       property="og:description"
       content="Personal study analytics, notes, and knowledge management with AI-powered tools"
@@ -18,7 +18,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/icons/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Knowledge Dashboard" />
+    <meta name="twitter:title" content="Skillstack" />
     <meta
       name="twitter:description"
       content="Personal study analytics, notes, and knowledge management with AI tools"
@@ -1465,7 +1465,7 @@
         text-overflow: ellipsis;
       }
     </style>
-    <title>Knowledge Dashboard</title>
+    <title>Skillstack</title>
   </head>
   <body>
     <!-- Login overlay -->
@@ -1473,7 +1473,7 @@
       <div class="login-box" id="login-box">
         <div id="login-landing">
           <div style="font-size: 48px; margin-bottom: 16px">&#x1F4DA;</div>
-          <h1>Knowledge Dashboard</h1>
+          <h1>Skillstack</h1>
           <p>
             Your personal study engine. Manage notes, track todos, and explore
             knowledge with AI-powered tools.
@@ -1627,7 +1627,7 @@
               letter-spacing: -0.3px;
             "
           >
-            Knowledge Dashboard
+            Skillstack
           </h1>
           <p style="font-size: 11px; color: #64748b; margin-top: 2px">
             Personal Study Engine
@@ -1958,6 +1958,10 @@
               } else if (entity.id) {
                 _sbUrl = `${SUPABASE_URL}/rest/v1/${entity.type}?id=eq.${entity.id}&select=*`;
               }
+              // Route collection GETs (no ID) to Supabase for cloud users
+              if (!_sbUrl) {
+                _sbUrl = `${SUPABASE_URL}/rest/v1/${entity.type}?select=*`;
+              }
             }
           } catch {}
         }
@@ -2220,49 +2224,54 @@
       }
 
       function renderNotesheet(content) {
-        if (!content) return '<div class="card" style="color:#64748b;font-size:13px">No content</div>';
-        // Escape HTML for safety, then convert markdown to HTML
-        const safe = esc(content);
-        let html;
         try {
-          html = marked.parse(safe, { breaks: true, gfm: true });
+          if (!content) return '<div class="card" style="color:#64748b;font-size:13px">No content</div>';
+          // Escape HTML for safety, then convert markdown to HTML
+          const safe = esc(content);
+          let html;
+          try {
+            html = marked.parse(safe, { breaks: true, gfm: true });
+          } catch (e) {
+            html = safe.replace(/\n/g, '<br>');
+          }
+          // Post-process: wrap sections in definition/formula/example/tip boxes
+          // Match h2/h3 headings followed by content until next heading or end
+          const sectionRegex = /<(h[23])([^>]*)>(.*?)<\/\1>([\s\S]*?)(?=(?:<(?:h[23])|$))/g;
+          html = html.replace(sectionRegex, (match, tag, attrs, heading, body) => {
+            const text = heading.replace(/<[^>]+>/g, '').trim().toLowerCase();
+            let boxClass = null;
+            let label = null;
+            if (/definition|key (?:definitions?|concepts?|terms?|ideas?)/.test(text)) {
+              boxClass = 'def-box'; label = 'Definition';
+            } else if (/formula/.test(text)) {
+              boxClass = 'formula-box'; label = 'Formula';
+            } else if (/example/.test(text)) {
+              boxClass = 'example-box'; label = 'Example';
+            } else if (/common mistakes?|tips?|mistakes? to avoid|warning/.test(text)) {
+              boxClass = 'tip-box'; label = 'Tip';
+            }
+            if (boxClass) {
+              const title = heading.replace(/<[^>]+>/g, '').replace(/^\*{1,2}|\*{1,2}$/g, '').trim();
+              return `<div class="${boxClass}"><div class="${boxClass.replace('-box', '-label')}">${label}</div><div class="${boxClass.replace('-box', '-title')}">${esc(title)}</div><div class="${boxClass.replace('-box', '-text')}">${body}</div></div>`;
+            }
+            return match;
+          });
+          // Also handle inline <strong>Definition:</strong> patterns
+          html = html.replace(/<p><strong>(Definition|Formula|Example|Tip|Note):?<\/strong>\s*([\s\S]*?)<\/p>/gi, (m, label, rest) => {
+            const lc = label.toLowerCase();
+            let boxClass = 'def-box';
+            if (/formula/i.test(lc)) boxClass = 'formula-box';
+            else if (/example/i.test(lc)) boxClass = 'example-box';
+            else if (/tip|note/i.test(lc)) boxClass = 'tip-box';
+            const labelClass = boxClass.replace('-box', '-label');
+            const textClass = boxClass.replace('-box', '-text');
+            return `<div class="${boxClass}"><div class="${labelClass}">${label}</div><div class="${textClass}">${rest}</div></div>`;
+          });
+          return `<div class="notesheet card">${html}</div>`;
         } catch (e) {
-          html = safe.replace(/\n/g, '<br>');
+          console.error("[renderNotesheet] Error:", e);
+          return `<div class="card" style="padding:20px"><pre style="color:#94a3b8;font-size:13px;white-space:pre-wrap">${esc(content)}</pre></div>`;
         }
-        // Post-process: wrap sections in definition/formula/example/tip boxes
-        // Match h2/h3 headings followed by content until next heading or end
-        const sectionRegex = /<(h[23])([^>]*)>(.*?)<\/\1>([\s\S]*?)(?=(?:<(?:h[23])|$))/g;
-        html = html.replace(sectionRegex, (match, tag, attrs, heading, body) => {
-          const text = heading.replace(/<[^>]+>/g, '').trim().toLowerCase();
-          let boxClass = null;
-          let label = null;
-          if (/definition|key (?:definitions?|concepts?|terms?|ideas?)/.test(text)) {
-            boxClass = 'def-box'; label = 'Definition';
-          } else if (/formula/.test(text)) {
-            boxClass = 'formula-box'; label = 'Formula';
-          } else if (/example/.test(text)) {
-            boxClass = 'example-box'; label = 'Example';
-          } else if (/common mistakes?|tips?|mistakes? to avoid|warning/.test(text)) {
-            boxClass = 'tip-box'; label = 'Tip';
-          }
-          if (boxClass) {
-            const title = heading.replace(/<[^>]+>/g, '').replace(/^\*{1,2}|\*{1,2}$/g, '').trim();
-            return `<div class="${boxClass}"><div class="${boxClass.replace('-box', '-label')}">${label}</div><div class="${boxClass.replace('-box', '-title')}">${esc(title)}</div><div class="${boxClass.replace('-box', '-text')}">${body}</div></div>`;
-          }
-          return match;
-        });
-        // Also handle inline <strong>Definition:</strong> patterns
-        html = html.replace(/<p><strong>(Definition|Formula|Example|Tip|Note):?<\/strong>\s*([\s\S]*?)<\/p>/gi, (m, label, rest) => {
-          const lc = label.toLowerCase();
-          let boxClass = 'def-box';
-          if (/formula/i.test(lc)) boxClass = 'formula-box';
-          else if (/example/i.test(lc)) boxClass = 'example-box';
-          else if (/tip|note/i.test(lc)) boxClass = 'tip-box';
-          const labelClass = boxClass.replace('-box', '-label');
-          const textClass = boxClass.replace('-box', '-text');
-          return `<div class="${boxClass}"><div class="${labelClass}">${label}</div><div class="${textClass}">${rest}</div></div>`;
-        });
-        return `<div class="notesheet card">${html}</div>`;
       }
 
       // ── Notesheet Export Actions ─────────────────────────────────────────
@@ -2400,7 +2409,7 @@
 <body style="font-family:Georgia,'Times New Roman',serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8;color:#1e293b">
 <h1 style="font-size:26px;color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:10px">${esc(title)}</h1>
 ${body}
-<p style="margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px">Generated by Knowledge Dashboard</p>
+<p style="margin-top:40px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px">Generated by Skillstack</p>
 </body></html>`;
       }
 
@@ -2430,7 +2439,12 @@ ${body}
             await loadGIS();
 
           // 2. Get OAuth token (triggers popup)
-          const token = await requestDriveToken();
+          const token = await Promise.race([
+            requestDriveToken(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("OAuth timed out")), 8000),
+            ),
+          ]);
 
           // 3. Build multipart upload — Drive converts HTML to Google Doc
           addToast("info", "Creating Google Doc...");
@@ -2494,12 +2508,15 @@ ${body}
 
       // ── Saved Notesheets ──────────────────────────────────────────────────
       let _editingNotesheetId = null;  // tracks which saved notesheet is being edited
+      let _nsViewMode = "list"; // "list" or "grid" for saved notesheets view
 
       async function renderSavedNotesheets(container) {
         container.innerHTML = '<div style="color:#64748b;font-size:13px;text-align:center;padding:40px">Loading saved notesheets...</div>';
         try {
           const notes = await apiGet("/api/notes");
+          console.log("[SavedNotesheets] Fetched notes:", notes && notes.length, notes);
           const notesheets = notes.filter(n => n.title && n.title.startsWith("Notesheet:"));
+          console.log("[SavedNotesheets] Filtered notesheets:", notesheets.length, notesheets.map(n => ({ id: n.id, title: n.title, contentLen: (n.content || "").length })));
           if (notesheets.length === 0) {
             container.innerHTML = '<div class="card" style="text-align:center;padding:40px;color:#64748b"><p style="font-size:14px;margin-bottom:8px">No saved notesheets yet.</p><p style="font-size:12px;color:#475569">Generate a notesheet in the <strong>Notesheet</strong> tab to see it here.</p></div>';
             return;
@@ -2510,22 +2527,93 @@ ${body}
             const stats = await apiGet("/api/notesheet/stats");
             limitStr = ` &middot; ${stats.count}/${stats.limit} limit`;
           } catch {}
+          const isGrid = _nsViewMode === "grid";
           container.innerHTML = `
-          <div style="margin-bottom:12px;font-size:13px;color:#94a3b8">${notesheets.length} saved notesheet${notesheets.length > 1 ? "s" : ""}${limitStr}</div>
-          <div id="ns-saved-list"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:13px;color:#94a3b8">${notesheets.length} saved notesheet${notesheets.length > 1 ? "s" : ""}${limitStr}</div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <button onclick="toggleNSViewMode()" style="padding:6px 12px;border-radius:6px;border:1px solid #475569;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px">
+                ${isGrid ? "&#9776; List" : "&#9638; Grid"}
+              </button>
+              <button onclick="toggleNSMassDelete()" id="ns-mass-delete-btn" style="padding:6px 12px;border-radius:6px;border:1px solid #ef4444;background:transparent;color:#ef4444;cursor:pointer;font-size:12px">&#128465; Mass Delete</button>
+            </div>
+          </div>
+          <div id="ns-mass-delete-bar" style="display:none;margin-bottom:12px;padding:12px 16px;border-radius:8px;border:1px solid #ef444433;background:#1e293b">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:13px;color:#e2e8f0">Delete notesheets older than:</span>
+              <select id="ns-delete-age" style="padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:12px;outline:none">
+                <option value="7">7 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">6 months</option>
+                <option value="365">1 year</option>
+              </select>
+              <button onclick="deleteOldNotesheets()" style="padding:6px 14px;border-radius:6px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:12px;font-weight:500">Delete</button>
+              <button onclick="toggleNSMassDelete()" style="padding:6px 12px;border-radius:6px;border:1px solid #475569;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px">Cancel</button>
+              <span id="ns-delete-status" style="font-size:12px;color:#64748b"></span>
+            </div>
+          </div>
+          <div id="ns-saved-list" style="${isGrid ? "display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px" : ""}"></div>
           <div id="ns-saved-viewer" style="display:none"></div>`;
           const list = document.getElementById("ns-saved-list");
-          list.innerHTML = notesheets.map(n => `
-            <div class="card" style="margin-bottom:8px;cursor:pointer" onclick="openSavedNotesheet('${n.id}')">
+          const cardStyle = isGrid
+            ? "cursor:pointer;border:1px solid #334155;padding:16px"
+            : "margin-bottom:8px;cursor:pointer";
+          list.innerHTML = notesheets.map(n => {
+            const safeId = String(n.id || "").replace(/'/g, "\\'");
+            const previewLen = isGrid ? 80 : 150;
+            const content = n.content || "";
+            return `
+            <div class="card" style="${cardStyle}" onclick="openSavedNotesheet('${safeId}')">
               <div style="font-weight:600;color:#e2e8f0;font-size:14px">${esc(n.title.replace(/^Notesheet:\s*/i, ""))}</div>
               <div style="font-size:11px;color:#475569;margin-top:4px">${timeAgo(n.created_at)}</div>
-              <div style="font-size:12px;color:#64748b;margin-top:4px">${esc((n.content || "").slice(0, 150))}${(n.content || "").length > 150 ? "..." : ""}</div>
-            </div>
-          `).join("");
+              <div style="font-size:12px;color:#64748b;margin-top:${isGrid ? 6 : 4}px">${esc(content.slice(0, previewLen))}${content.length > previewLen ? "..." : ""}</div>
+            </div>`;
+          }).join("");
         } catch (e) {
+          console.error("[SavedNotesheets] Failed to load:", e);
           container.innerHTML = `<div class="card" style="text-align:center;padding:20px;color:#f87171;font-size:13px">Failed to load notesheets: ${esc(e.message)}</div>`;
         }
       }
+
+      window.toggleNSViewMode = function () {
+        _nsViewMode = _nsViewMode === "grid" ? "list" : "grid";
+        const container = document.getElementById("study-content");
+        if (container) renderSavedNotesheets(container);
+      };
+
+      window.toggleNSMassDelete = function () {
+        const bar = document.getElementById("ns-mass-delete-bar");
+        const btn = document.getElementById("ns-mass-delete-btn");
+        if (!bar) return;
+        const hidden = bar.style.display === "none" || bar.style.display === "";
+        bar.style.display = hidden ? "block" : "none";
+        if (btn) btn.textContent = hidden ? "&#128465; Cancel" : "&#128465; Mass Delete";
+      };
+
+      window.deleteOldNotesheets = async function () {
+        const sel = document.getElementById("ns-delete-age");
+        const status = document.getElementById("ns-delete-status");
+        if (!sel || !status) return;
+        const days = parseInt(sel.value) || 30;
+        const confirmed = await showConfirm(
+          "Delete Old Notesheets",
+          `Delete all notesheets older than ${days} days? This cannot be undone.`,
+        );
+        if (!confirmed) return;
+        status.textContent = "Deleting...";
+        try {
+          const r = await apiPost("/api/notes/delete-old", { older_than_days: days, title_prefix: "Notesheet:" });
+          status.textContent = `✓ Deleted ${r.deleted_count || 0} notesheets`;
+          status.style.color = "#34d399";
+          // Re-render the list
+          const container = document.getElementById("study-content");
+          if (container) renderSavedNotesheets(container);
+        } catch (e) {
+          status.textContent = "Failed: " + e.message;
+          status.style.color = "#f87171";
+        }
+      };
 
       window.openSavedNotesheet = async function (id) {
         const list = document.getElementById("ns-saved-list");
@@ -2533,8 +2621,11 @@ ${body}
         if (!list || !viewer) return;
         try {
           const n = await apiGet("/api/notes/" + id);
+          list.style.display = "none";
           if (!n || !n.content) {
+            viewer.style.display = "block";
             viewer.innerHTML = '<div style="color:#f87171;font-size:13px;padding:20px">Notesheet content is empty.</div>';
+            viewer.scrollIntoView({ behavior: "smooth" });
           } else {
             _editingNotesheetId = id;
             _lastNotesheetContent = n.content;
@@ -2572,7 +2663,10 @@ ${body}
             viewer.scrollIntoView({ behavior: "smooth" });
           }
         } catch (e) {
+          list.style.display = "none";
+          viewer.style.display = "block";
           viewer.innerHTML = `<div style="color:#f87171;font-size:13px;padding:20px">Error: ${esc(e.message)}</div>`;
+          viewer.scrollIntoView({ behavior: "smooth" });
         }
       };
 
@@ -2580,7 +2674,7 @@ ${body}
         const viewer = document.getElementById("ns-saved-viewer");
         const list = document.getElementById("ns-saved-list");
         if (viewer) viewer.style.display = "none";
-        if (list) list.style.display = "block";
+        if (list) list.style.removeProperty("display");
         _editingNotesheetId = null;
       };
 
@@ -3068,7 +3162,7 @@ ${body}
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
           a.download =
-            "knowledge-dashboard-export-" +
+            "skillstack-export-" +
             new Date().toISOString().slice(0, 10) +
             ".json";
           a.click();
@@ -5063,6 +5157,12 @@ ${body}
           }
           if (isSignUp && !result.data.session) {
             // Email confirmation required — show confirmation page
+            // Clear IndexedDB preemptively so guest data doesn't survive to confirmation
+            for (const store of ["notes", "todos", "bookmarks", "syncQueue"]) {
+              try {
+                await dbClear(store);
+              } catch {}
+            }
             document.getElementById("login-auth-form").style.display = "none";
             document.getElementById("confirmation-email").textContent = email;
             document.getElementById("login-confirmation").style.display =
@@ -5074,6 +5174,12 @@ ${body}
             return;
           }
           // Signed in successfully
+          // Clear any guest data from IndexedDB to prevent leaking into the new account
+          for (const store of ["notes", "todos", "bookmarks", "syncQueue"]) {
+            try {
+              await dbClear(store);
+            } catch {}
+          }
           _isCloudUser = true;
           _userEmail = result.data.user?.email || "";
           try {
@@ -5105,11 +5211,18 @@ ${body}
         try {
           localStorage.removeItem("kd-auth");
         } catch {}
+        // Clear all IndexedDB stores to prevent data leakage between users
+        for (const store of ["notes", "todos", "bookmarks", "syncQueue"]) {
+          try {
+            await dbClear(store);
+          } catch {}
+        }
         document.getElementById("login-overlay").style.display = "flex";
         document.getElementById("login-landing").style.display = "block";
         document.getElementById("login-auth-form").style.display = "none";
         document.getElementById("login-confirmation").style.display = "none";
         document.getElementById("auth-error").textContent = "";
+        document.getElementById("view-content").innerHTML = "";
       }
       window.handleSignOut = handleSignOut;
 
@@ -5418,6 +5531,11 @@ ${body}
               _isCloudUser = false;
               _userEmail = "";
               renderSidebarAuth();
+              // Clear IndexedDB on SIGNED_OUT (covers multi-tab, session expiry)
+              ["notes", "todos", "bookmarks", "syncQueue"].forEach(
+                (s) => dbClear(s).catch(() => {}),
+              );
+              document.getElementById("view-content").innerHTML = "";
             } else if (event === "SIGNED_IN" && session) {
               _isCloudUser = true;
               _userEmail = session.user?.email || "";
