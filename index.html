@@ -1902,8 +1902,8 @@
           window.location.hostname === "0.0.0.0"
         )
           return ""; // same-origin — SPA is served by FastAPI
-        // Default: same-origin (works when FastAPI is proxied or tunneled)
-        return "https://marc-spent-rob-shuttle.trycloudflare.com";
+        // Default: same-origin. On Vercel, set your tunnel URL in Settings → Backend.
+        return "";
       })();
 
       // Allow user to set/clear API_BASE at runtime from Settings
@@ -4794,7 +4794,11 @@ ${body}
         } catch (e) {
           status.textContent = "Failed: " + e.message;
           status.style.color = "#f87171";
-          result.innerHTML = errorHTML(e.message);
+          const isNetworkError = e.message === "Failed to fetch" || e.message.includes("NetworkError") || e.message.includes("network");
+          const hint = isNetworkError
+            ? '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Go to <strong>Settings → Backend</strong> and make sure the API Server URL points to your active Cloudflare Tunnel URL. Start the tunnel with: <code style="color:#0ea5e9">cloudflared tunnel --url http://localhost:8000</code></p>'
+            : "";
+          result.innerHTML = errorHTML(e.message) + hint;
         }
       };
 
@@ -4931,7 +4935,11 @@ ${body}
           showProgress(0, "Failed", "Error");
           status.textContent = "Failed: " + e.message;
           status.style.color = "#f87171";
-          result.innerHTML = errorHTML(e.message);
+          const isNetworkError = e.message === "Failed to fetch" || e.message.includes("NetworkError") || e.message.includes("network");
+          const hint = isNetworkError
+            ? '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Go to <strong>Settings → Backend</strong> and make sure the API Server URL points to your active Cloudflare Tunnel URL.</p>'
+            : "";
+          result.innerHTML = errorHTML(e.message) + hint;
         }
       }
 
@@ -5461,7 +5469,7 @@ ${body}
           const hint = document.getElementById("settings-api-hint");
           if (hint) {
             hint.innerHTML =
-              '⚠️ No backend URL configured — PDF notesheets, search, and study features need one. Paste your tunnel URL above.';
+              '⚠️ No backend URL configured — notesheets, search, and AI features need one. Start a tunnel with <code style="color:#0ea5e9">cloudflared tunnel --url http://localhost:8000</code> on your server, then paste the tunnel URL above.';
           }
         }
       }
