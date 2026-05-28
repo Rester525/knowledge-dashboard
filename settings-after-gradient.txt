@@ -1,0 +1,73 @@
+- generic [ref=e59]:
+  - generic [ref=e198]:
+    - heading "Theme" [level=3] [ref=e199]
+    - generic [ref=e200]:
+      - generic [ref=e201] [cursor=pointer]:
+        - generic [ref=e202]: 🌓
+        - generic [ref=e203]: Standard
+        - generic [ref=e204]: Modern dark mode with blue accents
+      - generic [ref=e205] [cursor=pointer]:
+        - generic [ref=e206]: 📜
+        - generic [ref=e207]: Retro
+        - generic [ref=e208]: Warm parchment tones with serif fonts
+      - generic [ref=e209] [cursor=pointer]:
+        - generic [ref=e210]: 🕹️
+        - generic [ref=e211]: 8-Bit
+        - generic [ref=e212]: Pixel-perfect retro gaming aesthetic
+  - generic [ref=e213]:
+    - heading "Accent Color" [level=3] [ref=e214]
+    - generic [ref=e215]:
+      - generic "Blue" [ref=e216] [cursor=pointer]:
+        - generic [ref=e218]: Blue
+      - generic "Green" [ref=e219] [cursor=pointer]:
+        - generic [ref=e221]: Green
+      - generic "Purple" [ref=e222] [cursor=pointer]:
+        - generic [ref=e224]: Purple
+        - generic [ref=e225]: ✓
+      - generic "Amber" [ref=e226] [cursor=pointer]:
+        - generic [ref=e228]: Amber
+      - generic "Rose" [ref=e229] [cursor=pointer]:
+        - generic [ref=e231]: Rose
+      - generic "Red" [ref=e232] [cursor=pointer]:
+        - generic [ref=e234]: Red
+      - generic "Orange" [ref=e235] [cursor=pointer]:
+        - generic [ref=e237]: Orange
+      - generic "Teal" [ref=e238] [cursor=pointer]:
+        - generic [ref=e240]: Teal
+      - generic "Cyan" [ref=e241] [cursor=pointer]:
+        - generic [ref=e243]: Cyan
+      - generic "Indigo" [ref=e244] [cursor=pointer]:
+        - generic [ref=e246]: Indigo
+  - generic [ref=e247]:
+    - heading "Background" [level=3] [ref=e248]
+    - generic [ref=e249]:
+      - generic [ref=e250] [cursor=pointer]:
+        - generic [ref=e251]: 🎨
+        - generic [ref=e252]: Solid
+        - generic [ref=e253]: Clean solid dark background
+      - generic [ref=e254] [cursor=pointer]:
+        - generic [ref=e255]: 🌈
+        - generic [ref=e256]: Gradient
+        - generic [ref=e257]: Deep indigo gradient
+        - generic [ref=e258]: ✓ Active
+      - generic [ref=e259] [cursor=pointer]:
+        - generic [ref=e260]: 🪟
+        - generic [ref=e261]: Glass
+        - generic [ref=e262]: Frosted glass cards
+      - generic [ref=e263] [cursor=pointer]:
+        - generic [ref=e264]: 🌆
+        - generic [ref=e265]: Synthwave
+        - generic [ref=e266]: Vaporwave aesthetic
+  - generic [ref=e267]:
+    - heading "Data" [level=3] [ref=e268]
+    - generic [ref=e269]:
+      - button "Export All Data (JSON)" [ref=e270] [cursor=pointer]
+      - button "Import Data" [ref=e271] [cursor=pointer]
+  - generic [ref=e272]:
+    - heading "Account" [level=3] [ref=e273]
+    - generic [ref=e274]:
+      - paragraph [ref=e275]:
+        - text: "Mode:"
+        - strong [ref=e276]: Local (Guest)
+      - paragraph [ref=e277]: Running in Local Guest Mode. Data stored in IndexedDB — not synced to the cloud.
+      - button "Sign In" [ref=e278] [cursor=pointer]

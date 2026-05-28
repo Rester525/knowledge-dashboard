@@ -102,7 +102,7 @@ User → SPA (index.html) → API Router (api() function)
 - **CRUD endpoints:** Standard REST for `/api/notes`, `/api/todos`, `/api/bookmarks`
 - **Bulk delete:** `POST /api/notes/delete-old` accepts `{older_than_days, title_prefix?}`
 - **Stats:** `GET /api/stats`, `GET /api/notesheet/stats`
-- **CORS:** Wide open for development
+- **CORS:** Whitelists Vercel domains + localhost:8000
 
 ### 3.4 Ollama (AI)
 - **Host:** Internal network address (set via `OLLAMA_BASE` env var in FastAPI)
@@ -138,7 +138,7 @@ User → SPA (index.html) → API Router (api() function)
 | 4 | Bookmarks | Ctrl+4 | CRUD with URL links |
 | 5 | Calculator | Ctrl+5 | Desmos-style graphing calculator with presets (27 presets) |
 | 6 | Study | Ctrl+6 | Notesheet generation, Quiz, Timer (Pomodoro 25/5), Saved Notesheets |
-| 7 | Settings | Ctrl+7 | Theme, accent colors, backgrounds, export/import, account, backend config |
+| 7 | Settings | Ctrl+7 | Theme, accent colors, backgrounds, export/import, account |
 
 ### 4.2 Theme System
 - **Themes:** Standard (default), Retro (`.theme-retro`), 8-Bit (`.theme-8bit`)
@@ -183,8 +183,10 @@ node kd-features.mjs          # Feature tests (15) — settings, themes, backgro
 node screenshot-test.mjs      # Screenshot capture (13) — auth flows, themes, backgrounds, accents
 node test-full.mjs            # Full CRUD tests
 node test-pdf-notesheet.mjs   # PDF notesheet test (requires local backend)
-node test-vercel-pdf.mjs      # PDF notesheet test via Vercel → tunnel
+node test-vercel-pdf.mjs      # PDF notesheet test via Vercel
 node test-downloads.mjs       # PDF + Drive export tests
+node test-auth.mjs            # Auth flow tests
+node test-saved-notesheets.mjs # Saved notesheets interaction tests
 ```
 
 ### 5.2 Test Setup
@@ -208,7 +210,7 @@ node test-downloads.mjs       # PDF + Drive export tests
 ## 7. File Map
 
 ```
-knowledge-dashboard/
+skillstack/
 ├── index.html                     # SPA (single file, ~5500 lines)
 ├── CLAUDE.md                      # Project state & context
 ├── PROJECT_BRIEF.md              # THIS FILE — comprehensive reference
@@ -244,8 +246,8 @@ knowledge-dashboard/
 
 | Project | Location | Description |
 |---------|----------|-------------|
-| **FastAPI Backend** | `~/my-project/knowledge-dashboard/fastapi-app/` | Python/FastAPI with SQLite + Ollama |
-| **Next.js App** | `~/my-project/knowledge-dashboard/next-app/` | Next.js 16 + Neon Postgres + OpenAI |
+| **FastAPI Backend** | `~/my-project/skillstack/fastapi-app/` | Python/FastAPI with SQLite + Ollama |
+| **Next.js App** | `~/my-project/skillstack/next-app/` | Next.js 16 + Neon Postgres + OpenAI |
 | **Email Scanner** | `~/my-project/email_scanner/` | FastAPI app for scanning Gmail via API |
 | **Express/Auth0 App** | (external repo) | Node.js/Express + Auth0 + EJS — deployed at skillstack.vercel.app (BROKEN: missing vercel.json, serving raw app.js) |
 | **React App** | `~/my-project/web/` | Vite + React + Tailwind + KaTeX |
@@ -258,17 +260,16 @@ knowledge-dashboard/
 
 ```bash
 # Deploy SPA to Vercel
-cd ~/my-project/knowledge-dashboard
+cd ~/my-project/skillstack
 npx vercel deploy --prod
 
 # Run FastAPI backend locally
-cd ~/my-project/knowledge-dashboard/fastapi-app
+cd ~/my-project/skillstack/fastapi-app
 venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 
-# (no tunnel needed — runs on localhost:8000)
 
 # Run tests
-cd ~/my-project/knowledge-dashboard
+cd ~/my-project/skillstack
 node kd-test.mjs
 
 # Mirror SPA changes (after editing root index.html)

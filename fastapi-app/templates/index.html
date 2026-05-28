@@ -2187,10 +2187,25 @@
         return `<div style="display:flex;align-items:center;justify-content:center;height:200px"><div style="text-align:center;color:#f87171"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 12px"><path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg><p style="font-size:14px;font-weight:500">${esc(msg)}</p><button onclick="navigate(currentView)" style="margin-top:12px;padding:6px 16px;border-radius:8px;border:1px solid #475569;background:transparent;color:#e2e8f0;cursor:pointer;font-size:12px">Retry</button></div></div>`;
       }
 
+      function sanitizeHTML(dirty) {
+        let clean = dirty
+          .replace(/\${2,}\s*/g, '')
+          .replace(/(?:\$\s*){3,}/g, '')
+          .replace(/(?:<br\s*\/?>\s*){3,}/gi, '<br><br>')
+          .replace(/<\/?(?:\w+)\s*\/?>(?:\s*<\/?\w+\s*\/?>\s*)*$/g, '');
+        if (typeof DOMParser !== "undefined") {
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString('<div id="sanitize-root">' + clean + '</div>', "text/html");
+            return doc.getElementById("sanitize-root").innerHTML;
+          } catch (_) {}
+        }
+        return clean;
+      }
+
       function renderNotesheet(content) {
         try {
           if (!content) return '<div class="card" style="color:#64748b;font-size:13px">No content</div>';
-          // Escape HTML for safety, then convert markdown to HTML
           const safe = esc(content);
           let html;
           try {
@@ -2198,8 +2213,7 @@
           } catch (e) {
             html = safe.replace(/\n/g, '<br>');
           }
-          // Post-process: wrap sections in definition/formula/example/tip boxes
-          // Match h2/h3 headings followed by content until next heading or end
+          html = sanitizeHTML(html);
           const sectionRegex = /<(h[23])([^>]*)>(.*?)<\/\1>([\s\S]*?)(?=(?:<(?:h[23])|$))/g;
           html = html.replace(sectionRegex, (match, tag, attrs, heading, body) => {
             const text = heading.replace(/<[^>]+>/g, '').trim().toLowerCase();
@@ -2220,7 +2234,6 @@
             }
             return match;
           });
-          // Also handle inline <strong>Definition:</strong> patterns
           html = html.replace(/<p><strong>(Definition|Formula|Example|Tip|Note):?<\/strong>\s*([\s\S]*?)<\/p>/gi, (m, label, rest) => {
             const lc = label.toLowerCase();
             let boxClass = 'def-box';
@@ -2231,6 +2244,7 @@
             const textClass = boxClass.replace('-box', '-text');
             return `<div class="${boxClass}"><div class="${labelClass}">${label}</div><div class="${textClass}">${rest}</div></div>`;
           });
+          html = sanitizeHTML(html);
           return `<div class="notesheet card">${html}</div>`;
         } catch (e) {
           console.error("[renderNotesheet] Error:", e);
@@ -2271,25 +2285,28 @@
         addToast("info", "Generating PDF...");
 
         try {
-          // Use html2pdf.js for one-click PDF download
           if (typeof html2pdf !== "undefined") {
-            // Clone the notesheet content into a temp container for clean PDF
-            const clone = result.cloneNode(true);
-            clone.id = "ns-pdf-temp";
-            clone.style.position = "absolute";
-            clone.style.left = "0";
-            clone.style.top = "-9999px";
-            clone.style.width = "800px";
-            clone.style.background = "#0f172a";
-            clone.style.padding = "30px";
-            clone.style.color = "#cbd5e1";
-            clone.style.fontSize = "14px";
-            clone.style.lineHeight = "1.8";
-            clone.style.opacity = "1";
-            // Remove actions from clone (they shouldn't appear in PDF)
-            const actions = clone.querySelector(".ns-actions");
+            const rendered = renderNotesheet(content);
+            const temp = document.createElement("div");
+            temp.innerHTML = rendered;
+            const actions = temp.querySelector(".ns-actions");
             if (actions) actions.remove();
-            document.body.appendChild(clone);
+            if (temp.querySelector("pre")) {
+              window.print();
+              return;
+            }
+            temp.id = "ns-pdf-temp";
+            temp.style.position = "absolute";
+            temp.style.left = "0";
+            temp.style.top = "-9999px";
+            temp.style.width = "800px";
+            temp.style.background = "#0f172a";
+            temp.style.padding = "30px";
+            temp.style.color = "#cbd5e1";
+            temp.style.fontSize = "14px";
+            temp.style.lineHeight = "1.8";
+            temp.style.opacity = "1";
+            document.body.appendChild(temp);
 
             const opt = {
               margin: [10, 10, 10, 10],
@@ -2307,18 +2324,16 @@
               },
               pagebreak: { mode: ["avoid-all", "css", "legacy"] },
             };
-            await html2pdf().set(opt).from(clone).save();
-            document.body.removeChild(clone);
+            await html2pdf().set(opt).from(temp).save();
+            document.body.removeChild(temp);
             addToast("success", "PDF downloaded!");
           } else {
-            // Fallback: print dialog
             result.classList.add("ns-print-area");
             window.print();
             setTimeout(() => result.classList.remove("ns-print-area"), 2000);
           }
         } catch (e) {
           addToast("error", "PDF failed: " + e.message);
-          // Last resort fallback
           window.print();
         }
       }
@@ -2366,8 +2381,9 @@
       }
 
       function buildDriveHTML(title, content) {
-        // Convert markdown-style content to clean HTML, escaped for safety
-        const body = marked.parse(esc(content), { breaks: true, gfm: true });
+        let body = marked.parse(esc(content), { breaks: true, gfm: true });
+        body = sanitizeHTML(body);
+        body = body.replace(/<(br|hr|img)([^>]*)>/gi, '<$1$2 />');
         return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${esc(title)}</title></head>
 <body style="font-family:Georgia,'Times New Roman',serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8;color:#1e293b">
