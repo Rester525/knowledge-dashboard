@@ -4978,7 +4978,12 @@ ${body}
               body: formData,
             },
           );
-          if (!response.ok) throw new Error(await response.text());
+          console.log("[PDF Upload] Response status:", response.status, response.statusText);
+          if (!response.ok) {
+            const body = await response.text();
+            console.error("[PDF Upload] Server error body:", body);
+            throw new Error("HTTP " + response.status + ": " + (body || response.statusText));
+          }
 
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
@@ -5031,13 +5036,18 @@ ${body}
             throw new Error("No result received");
           }
         } catch (e) {
+          console.error("[PDF Upload] Catch block:", e.name, e.message, e.stack);
           showProgress(0, "Failed", "Error");
           status.textContent = "Failed: " + e.message;
           status.style.color = "#f87171";
-          const isNetworkError = e.message === "Failed to fetch" || e.message.includes("NetworkError") || e.message.includes("network");
-          const hint = isNetworkError
-            ? '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Make sure the FastAPI server is running on http://localhost:8000.</p>'
-            : "";
+          const isNetworkError = e.message === "Failed to fetch" || e.message.includes("NetworkError") || e.message.includes("network") || e.message.includes("ERR_CONNECTION");
+          const isHttpError = e.message.startsWith("HTTP ");
+          let hint = "";
+          if (isNetworkError) {
+            hint = '<p style="margin-top:12px;font-size:12px;color:#fbbf24">\u{1F4A1} Can\'t reach the backend server. Make sure the FastAPI server is running on http://localhost:8000.</p>';
+          } else if (isHttpError) {
+            hint = '<p style="margin-top:12px;font-size:12px;color:#fbbf24">Server returned <strong>' + e.message.split(":")[0].trim() + '</strong>. Check the uvicorn terminal for the full error trace.</p>';
+          }
           result.innerHTML = errorHTML(e.message) + hint;
         }
       }

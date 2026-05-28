@@ -13,3 +13,6 @@ sentence-transformers==3.4.1
 # Templates (for initial server-rendered fallback)
 jinja2==3.1.5
 
+# File uploads (required by FastAPI Form/File)
+python-multipart==0.0.20
+
