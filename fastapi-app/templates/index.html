@@ -2206,56 +2206,80 @@
       function renderNotesheet(content) {
         try {
           if (!content) return '<div class="card" style="color:#64748b;font-size:13px">No content</div>';
-          // Pre-process: strip LaTeX before any parsing (failsafe if AI disobeys)
           let cleaned = content
             .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2')
             .replace(/\\dfrac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2')
             .replace(/\$\$?/g, '')
-            .replace(/\\\[|\\\]|\\\(|\\\)/g, '')
-            .replace(/\\(?:mod|sqrt|cdot|div|times|pm|infty|approx|neq|leq|geq)/g, '');
-          const safe = esc(cleaned);
+            .replace(/\\[a-zA-Z]+\{?[^}]*\}?/g, '')
+            .replace(/[\{\}]/g, '');
           let html;
           try {
-            html = marked.parse(safe, { breaks: true, gfm: true });
+            html = marked.parse(esc(cleaned), { breaks: true, gfm: true });
           } catch (e) {
-            html = safe.replace(/\n/g, '<br>');
+            html = esc(cleaned).replace(/\n/g, '<br>');
           }
           html = sanitizeHTML(html);
-          const sectionRegex = /<(h[23])([^>]*)>(.*?)<\/\1>([\s\S]*?)(?=(?:<(?:h[23])|$))/g;
-          html = html.replace(sectionRegex, (match, tag, attrs, heading, body) => {
-            const text = heading.replace(/<[^>]+>/g, '').trim().toLowerCase();
-            let boxClass = null;
-            let label = null;
-            if (/definition|key (?:definitions?|concepts?|terms?|ideas?)/.test(text)) {
-              boxClass = 'def-box'; label = 'Definition';
-            } else if (/formula/.test(text)) {
-              boxClass = 'formula-box'; label = 'Formula';
-            } else if (/example/.test(text)) {
-              boxClass = 'example-box'; label = 'Example';
-            } else if (/common mistakes?|tips?|mistakes? to avoid|warning/.test(text)) {
-              boxClass = 'tip-box'; label = 'Tip';
+
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          const out = document.createDocumentFragment();
+          let child = tempDiv.firstElementChild;
+
+          while (child) {
+            const tag = child.tagName;
+            if (tag === 'H2' || tag === 'H3') {
+              const text = (child.textContent || '').trim().toLowerCase();
+              let boxClass, label;
+              if (/definition|key definitions?|key concepts?|key terms?/.test(text)) {
+                boxClass = 'def-box'; label = 'Definition';
+              } else if (/formula/.test(text)) {
+                boxClass = 'formula-box'; label = 'Formula';
+              } else if (/example/.test(text)) {
+                boxClass = 'example-box'; label = 'Example';
+              } else if (/common mistakes?|tips?|mistakes? to avoid|warning/.test(text)) {
+                boxClass = 'tip-box'; label = 'Tip';
+              }
+
+              if (boxClass) {
+                const wrap = document.createElement('div');
+                wrap.className = boxClass;
+
+                const labelDiv = document.createElement('div');
+                labelDiv.className = boxClass.replace('-box', '-label');
+                labelDiv.textContent = label;
+                wrap.appendChild(labelDiv);
+
+                const titleDiv = document.createElement('div');
+                titleDiv.className = boxClass.replace('-box', '-title');
+                titleDiv.textContent = child.textContent || '';
+                wrap.appendChild(titleDiv);
+
+                const textDiv = document.createElement('div');
+                textDiv.className = boxClass.replace('-box', '-text');
+                wrap.appendChild(textDiv);
+
+                let next = child.nextElementSibling;
+                while (next && !/^H[123]$/i.test(next.tagName)) {
+                  const sib = next;
+                  next = sib.nextElementSibling;
+                  textDiv.appendChild(sib);
+                }
+                out.appendChild(wrap);
+                child = next;
+                continue;
+              }
             }
-            if (boxClass) {
-              const title = heading.replace(/<[^>]+>/g, '').replace(/^\*{1,2}|\*{1,2}$/g, '').trim();
-              return `<div class="${boxClass}"><div class="${boxClass.replace('-box', '-label')}">${label}</div><div class="${boxClass.replace('-box', '-title')}">${esc(title)}</div><div class="${boxClass.replace('-box', '-text')}">${body}</div></div>`;
-            }
-            return match;
-          });
-          html = html.replace(/<p><strong>(Definition|Formula|Example|Tip|Note):?<\/strong>\s*([\s\S]*?)<\/p>/gi, (m, label, rest) => {
-            const lc = label.toLowerCase();
-            let boxClass = 'def-box';
-            if (/formula/i.test(lc)) boxClass = 'formula-box';
-            else if (/example/i.test(lc)) boxClass = 'example-box';
-            else if (/tip|note/i.test(lc)) boxClass = 'tip-box';
-            const labelClass = boxClass.replace('-box', '-label');
-            const textClass = boxClass.replace('-box', '-text');
-            return `<div class="${boxClass}"><div class="${labelClass}">${label}</div><div class="${textClass}">${rest}</div></div>`;
-          });
-          html = sanitizeHTML(html);
-          return `<div class="notesheet card">${html}</div>`;
+            const next = child.nextElementSibling;
+            out.appendChild(child);
+            child = next;
+          }
+
+          const tmp = document.createElement('div');
+          tmp.appendChild(out);
+          return '<div class="notesheet card">' + tmp.innerHTML + '</div>';
         } catch (e) {
           console.error("[renderNotesheet] Error:", e);
-          return `<div class="card" style="padding:20px"><pre style="color:#94a3b8;font-size:13px;white-space:pre-wrap">${esc(content)}</pre></div>`;
+          return '<div class="card" style="padding:20px"><pre style="color:#94a3b8;font-size:13px;white-space:pre-wrap">' + esc(content) + '</pre></div>';
         }
       }
 
@@ -2285,27 +2309,70 @@
       }
 
       async function downloadNotesheetPDF(nsContent, nsTitle) {
+        const VISUAL_DEBUG = true;
+        console.log("[PDF DEBUG] Step 1: downloadNotesheetPDF called", { nsContentLength: nsContent?.length, nsTitle });
+
         const content = nsContent || _lastNotesheetContent;
         const title = nsTitle || _lastNotesheetTitle;
         const result = document.getElementById("ns-result");
-        if (!result || !content) return;
+        if (!result || !content) {
+          console.warn("[PDF DEBUG] Aborting — no result element or content", { hasResult: !!result, contentLength: content?.length });
+          return;
+        }
         addToast("info", "Generating PDF...");
 
         try {
-          if (typeof html2pdf !== "undefined") {
-            const rendered = renderNotesheet(content);
-            const temp = document.createElement("div");
-            temp.innerHTML = rendered;
-            const actions = temp.querySelector(".ns-actions");
-            if (actions) actions.remove();
-            if (temp.querySelector("pre")) {
-              window.print();
-              return;
-            }
-            temp.id = "ns-pdf-temp";
-            temp.style.position = "absolute";
+          if (typeof html2pdf === "undefined") {
+            console.warn("[PDF DEBUG] html2pdf not loaded — falling back to window.print()");
+            result.classList.add("ns-print-area");
+            window.print();
+            setTimeout(() => result.classList.remove("ns-print-area"), 2000);
+            return;
+          }
+
+          console.log("[PDF DEBUG] Step 2: Rendering notesheet content");
+          const rendered = renderNotesheet(content);
+          console.log("[PDF DEBUG] rendered HTML length:", rendered.length);
+          console.log("[PDF DEBUG] rendered HTML preview:", rendered.slice(0, 500));
+
+          const temp = document.createElement("div");
+          temp.innerHTML = rendered;
+          console.log("[PDF DEBUG] Step 3: innerHTML assigned, child count:", temp.children.length);
+
+          const actions = temp.querySelector(".ns-actions");
+          if (actions) actions.remove();
+          console.log("[PDF DEBUG] Step 4: Actions removed");
+
+          if (temp.querySelector("pre")) {
+            console.warn("[PDF DEBUG] renderNotesheet returned error fallback — using window.print()");
+            window.print();
+            return;
+          }
+
+          temp.id = "ns-pdf-temp";
+
+          if (VISUAL_DEBUG) {
+            console.log("[PDF DEBUG] VISUAL_DEBUG mode — NOT hiding element");
+            temp.style.border = "5px solid red";
+            temp.style.zIndex = "99999";
+            temp.style.position = "relative";
+            temp.style.top = "0";
             temp.style.left = "0";
-            temp.style.top = "-9999px";
+            temp.style.width = "800px";
+            temp.style.margin = "20px auto";
+            temp.style.background = "#0f172a";
+            temp.style.padding = "30px";
+            temp.style.color = "#cbd5e1";
+            temp.style.fontSize = "14px";
+            temp.style.lineHeight = "1.8";
+            temp.style.opacity = "1";
+            document.body.appendChild(temp);
+            console.log("[PDF DEBUG] Step 5: Element appended to body (visible)");
+            temp.scrollIntoView({ behavior: "instant", block: "start" });
+          } else {
+            temp.style.position = "absolute";
+            temp.style.left = "-9999px";
+            temp.style.top = "0";
             temp.style.width = "800px";
             temp.style.background = "#0f172a";
             temp.style.padding = "30px";
@@ -2314,35 +2381,78 @@
             temp.style.lineHeight = "1.8";
             temp.style.opacity = "1";
             document.body.appendChild(temp);
-            // Wait one frame for the browser to paint the parsed DOM into the temp element
-            await new Promise(r => requestAnimationFrame(r));
-
-            const opt = {
-              margin: [10, 10, 10, 10],
-              filename: title.replace(/[^a-zA-Z0-9 _-]/g, "") + ".pdf",
-              image: { type: "jpeg", quality: 0.98 },
-              html2canvas: {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: "#0f172a",
-              },
-              jsPDF: {
-                unit: "mm",
-                format: "a4",
-                orientation: "portrait",
-              },
-              pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-            };
-            await html2pdf().set(opt).from(temp).save();
-            document.body.removeChild(temp);
-            addToast("success", "PDF downloaded!");
-          } else {
-            result.classList.add("ns-print-area");
-            window.print();
-            setTimeout(() => result.classList.remove("ns-print-area"), 2000);
           }
+
+          await new Promise(r => setTimeout(r, 200));
+          console.log("[PDF DEBUG] Step 6: After paint delay");
+
+          const oh = temp.offsetHeight;
+          const ow = temp.offsetWidth;
+          console.log("[PDF DEBUG] Step 7: temp element dimensions", { offsetHeight: oh, offsetWidth: ow });
+          console.log("[PDF DEBUG] temp innerHTML length:", temp.innerHTML.length);
+          console.log("[PDF DEBUG] temp childNode count:", temp.childNodes.length);
+          if (temp.firstElementChild) {
+            console.log("[PDF DEBUG] first child tag:", temp.firstElementChild.tagName, "class:", temp.firstElementChild.className);
+          }
+          if (oh === 0 || ow === 0) {
+            console.error("[PDF DEBUG] CRITICAL: Element has zero dimensions — PDF will be blank!");
+            const cs = window.getComputedStyle(temp);
+            console.log("[PDF DEBUG] computed style:", {
+              display: cs.display,
+              position: cs.position,
+              visibility: cs.visibility,
+              opacity: cs.opacity,
+              overflow: cs.overflow,
+              height: cs.height,
+              width: cs.width,
+              maxHeight: cs.maxHeight,
+            });
+            void temp.offsetHeight;
+            console.log("[PDF DEBUG] offsetHeight after force reflow:", temp.offsetHeight);
+          }
+
+          const opt = {
+            margin: [10, 10, 10, 10],
+            filename: title.replace(/[^a-zA-Z0-9 _-]/g, "") + ".pdf",
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: "#0f172a",
+              logging: true,
+              onclone: (clonedDoc) => {
+                console.log("[PDF DEBUG] html2canvas onclone fired, doc URL:", clonedDoc.URL);
+                const clonedEl = clonedDoc.getElementById("ns-pdf-temp");
+                if (clonedEl) {
+                  console.log("[PDF DEBUG] cloned element dimensions:", { h: clonedEl.offsetHeight, w: clonedEl.offsetWidth });
+                  console.log("[PDF DEBUG] cloned element children:", clonedEl.children.length);
+                } else {
+                  console.warn("[PDF DEBUG] onclone: #ns-pdf-temp not found in cloned doc");
+                }
+              },
+            },
+            jsPDF: {
+              unit: "mm",
+              format: "a4",
+              orientation: "portrait",
+            },
+            pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+          };
+          console.log("[PDF DEBUG] Step 8: Calling html2pdf().set(opt).from(temp).save()");
+
+          await html2pdf().set(opt).from(temp).save();
+
+          console.log("[PDF DEBUG] Step 9: html2pdf.save() resolved successfully");
+          document.body.removeChild(temp);
+          addToast("success", "PDF downloaded!");
         } catch (e) {
+          console.error("[PDF DEBUG] CATCH BLOCK — html2pdf error:", e);
+          console.error("[PDF DEBUG] Error name:", e.name);
+          console.error("[PDF DEBUG] Error message:", e.message);
+          console.error("[PDF DEBUG] Error stack:", e.stack);
           addToast("error", "PDF failed: " + e.message);
+          const dbg = document.getElementById("ns-pdf-temp");
+          if (dbg) dbg.remove();
           window.print();
         }
       }
