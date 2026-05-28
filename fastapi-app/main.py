@@ -208,6 +208,32 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _clean_latex(text: str) -> str:
+    """Strip LaTeX and backslash commands from AI output for human-readable text."""
+    import re
+    t = text
+    # Remove $$...$$ blocks (may span multiple lines)
+    t = re.sub(r'\$\$[\s\S]*?\$\$', '', t)
+    # Remove single $...$ inline math
+    t = re.sub(r'\$[^$]*?\$', '', t)
+    # Convert \frac{a}{b} → a/b
+    t = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'\1/\2', t)
+    t = re.sub(r'\\dfrac\{([^}]+)\}\{([^}]+)\}', r'\1/\2', t)
+    # Remove \text{...} but keep inner content
+    t = re.sub(r'\\text\{([^}]*)\}', r'\1', t)
+    # Remove common LaTeX commands: \implies, \pm, \sqrt, \cdot, \times, \wedge, \Theta, \rightarrow, etc.
+    t = re.sub(r'\\(?:implies|pm|sqrt|cdot|times|wedge|Theta|rightarrow|leftarrow|approx|neq|leq|geq|infty|circ|cdotp|dots|cdots|mod|pmod|bmod|div|times)', '', t)
+    # Remove any remaining \command{...} or \command
+    t = re.sub(r'\\[a-zA-Z]+\{?[^}]*\}?', '', t)
+    # Remove stray curly braces that aren't part of markdown
+    t = t.replace('{', '').replace('}', '')
+    # Collapse multiple spaces
+    t = re.sub(r' {2,}', ' ', t)
+    # Clean up blank lines
+    t = re.sub(r'\n{3,}', '\n\n', t)
+    return t.strip()
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  API ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -503,6 +529,7 @@ Make the notes visually organized and easy to scan at a glance."""
     raw = await _ollama_generate(prompt, system)
     cleaned = raw.split(" response")[-1] if " response" in raw else raw
     cleaned = cleaned.replace(" response", "").strip()
+    cleaned = _clean_latex(cleaned)
     return topic, cleaned
 
 
@@ -620,9 +647,9 @@ Use markdown formatting:
 
 Make the notes visually organized and easy to scan at a glance."""
     raw = await _ollama_generate(prompt, system)
-    # Clean up thinking tags if present
-    cleaned = raw.split("<｜end▁of▁thinking｜>")[-1] if "response" in raw else raw
-    cleaned = cleaned.replace("<｜end▁of▁thinking｜>", "").strip()
+    cleaned = raw.split(" response")[-1] if "response" in raw else raw
+    cleaned = cleaned.replace(" response", "").strip()
+    cleaned = _clean_latex(cleaned)
 
     title = f"Notesheet: {req.topic}"
     content = cleaned
@@ -1017,6 +1044,7 @@ Return the COMPLETE edited notes in markdown format. Do not truncate or summariz
     raw = await _ollama_generate(prompt, system)
     cleaned = raw.split(" response")[-1] if " response" in raw else raw
     cleaned = cleaned.replace(" response", "").strip()
+    cleaned = _clean_latex(cleaned)
     return {"content": cleaned}
 
 
