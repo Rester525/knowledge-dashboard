@@ -2206,7 +2206,14 @@
       function renderNotesheet(content) {
         try {
           if (!content) return '<div class="card" style="color:#64748b;font-size:13px">No content</div>';
-          const safe = esc(content);
+          // Pre-process: strip LaTeX before any parsing (failsafe if AI disobeys)
+          let cleaned = content
+            .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2')
+            .replace(/\\dfrac\{([^}]+)\}\{([^}]+)\}/g, '$1/$2')
+            .replace(/\$\$?/g, '')
+            .replace(/\\\[|\\\]|\\\(|\\\)/g, '')
+            .replace(/\\(?:mod|sqrt|cdot|div|times|pm|infty|approx|neq|leq|geq)/g, '');
+          const safe = esc(cleaned);
           let html;
           try {
             html = marked.parse(safe, { breaks: true, gfm: true });
@@ -2307,6 +2314,8 @@
             temp.style.lineHeight = "1.8";
             temp.style.opacity = "1";
             document.body.appendChild(temp);
+            // Wait one frame for the browser to paint the parsed DOM into the temp element
+            await new Promise(r => requestAnimationFrame(r));
 
             const opt = {
               margin: [10, 10, 10, 10],

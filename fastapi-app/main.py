@@ -479,7 +479,7 @@ async def _generate_notesheet_from_text(text: str, topic: str) -> tuple[str, str
     max_chars = 8000
     truncated = text[:max_chars] if len(text) > max_chars else text
 
-    system = "You are a math tutor creating clear, well-formed study notes. CRITICAL RULES: 1) Always close every Markdown table you start — every opening `|` must have a matching closing `|` on the same row. 2) NEVER use block LaTeX ($$...$$) inside table cells — use only inline $...$ for math inside tables, and keep each expression short enough to fit on one line. 3) NEVER repeat a heading or label — write \"Example 1\" once, not \"Example Example Example 1\". 4) Always close bold (**) and code (`` ` ``) spans on the same line they open. 5) If a section is empty, skip it entirely — don't output placeholder text."
+    system = "You are a math tutor creating clear, well-formed study notes. CRITICAL RULES — THESE ARE MANDATORY: 1) NEVER use LaTeX, MathJax, $ signs, \\[, \\], \\(, \\), \\frac, \\mod, \\sqrt, or any backslash-escaped math notation. Write all math in plain text: fractions as a/b, exponents as x^2, modulo as \"mod\". Example: write \"4/9\" not \"$\\\\frac{4}{9}$\". 2) Always close every Markdown table you start — every opening | must have a matching closing | on the same row, and there must be a blank line before and after each table. 3) NEVER repeat a heading or label — write \"Example 1\" once, not \"Example Example Example 1\". 4) Always close bold (**) and code (`) spans on the same line they open. 5) If a section is empty, skip it entirely — don't output placeholder text."
     prompt = f"""Create comprehensive study notes from the following lesson material on: {topic}
 
 Lesson material:
@@ -601,7 +601,7 @@ async def generate_notesheet(req: AINotesheetRequest):
     count = await _count_notesheets(db)
     if count >= NOTESHEET_LIMIT:
         raise HTTPException(429, f"Notesheet limit reached (max {NOTESHEET_LIMIT}). Delete old notesheets to create more.")
-    system = "You are a math tutor creating clear, well-formed study notes. CRITICAL RULES: 1) Always close every Markdown table you start — every opening `|` must have a matching closing `|` on the same row. 2) NEVER use block LaTeX ($$...$$) inside table cells — use only inline $...$ for math inside tables, and keep each expression short enough to fit on one line. 3) NEVER repeat a heading or label — write \"Example 1\" once, not \"Example Example Example 1\". 4) Always close bold (**) and code (`` ` ``) spans on the same line they open. 5) If a section is empty, skip it entirely — don't output placeholder text."
+    system = "You are a math tutor creating clear, well-formed study notes. CRITICAL RULES — THESE ARE MANDATORY: 1) NEVER use LaTeX, MathJax, $ signs, \\[, \\], \\(, \\), \\frac, \\mod, \\sqrt, or any backslash-escaped math notation. Write all math in plain text: fractions as a/b, exponents as x^2, modulo as \"mod\". Example: write \"4/9\" not \"$\\\\frac{4}{9}$\". 2) Always close every Markdown table you start — every opening | must have a matching closing | on the same row, and there must be a blank line before and after each table. 3) NEVER repeat a heading or label — write \"Example 1\" once, not \"Example Example Example 1\". 4) Always close bold (**) and code (`) spans on the same line they open. 5) If a section is empty, skip it entirely — don't output placeholder text."
     source = f"\n\nSource material:\n{req.source_text}" if req.source_text else ""
     prompt = f"""Create comprehensive study notes for: {req.topic}{source}
 

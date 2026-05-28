@@ -35,3 +35,12 @@ supabase/.temp/
 # System
 .DS_Store
 Thumbs.db
+
+# Node
+node_modules/
+
+# Data (auto-generated)
+data/
+
+# Vercel
+.vercel/
