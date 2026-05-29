@@ -1,6 +1,8 @@
 # Skillstack
 
 > **IMPORTANT**: This file is the single source of truth for project state and survives conversation compression. Keep it current — particularly the "What Still Needs to Happen" and "Current Session Context" sections. After every significant change, update this file so the next session picks up without asking for status.
+>
+> **DEPLOY RULE**: After every code change, deploy to Vercel via `npx vercel --prod`. Commit and push to GitHub first — Vercel deploys from the git repo, not local files. Verify with `curl -s -o /dev/null -w "%{http_code}" https://skillstack-learn.vercel.app/`.
 
 Single-page vanilla JS knowledge management app — notes, todos, bookmarks, calculator, study timer, search, settings. Deployed on Vercel.
 
@@ -9,7 +11,7 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 - **Single file SPA**: `index.html` at repo root (~5500 lines) — inline CSS + JS, no framework. Mirrored in `fastapi-app/templates/index.html`
 - **Tailwind CSS** via CDN (`cdn.tailwindcss.com`) for utility classes
 - **IndexedDB** (`idb-keyval` via CDN) for local data storage (guest mode)
-- **Supabase** (`@supabase/supabase-js` via CDN) for cloud auth and database (project ref: `iwkbuurltlnaszptrgth`)
+- **Supabase** (`@supabase/supabase-js` via CDN) for cloud auth and database (project ref: `iwkbuurltlnaszptrgth`) — integrated with Vercel and GitHub
 - **Vercel** deployment at `https://skillstack-learn.vercel.app` with SPA rewrites (`vercel.json`) — auto-runs `vite build` via root `vite.config.js`
 - **Service worker** at `sw.js` for offline caching
 - **GitHub**: `Rester525/knowledge-dashboard` — push to main triggers Vercel deploy

@@ -74,6 +74,7 @@ User → SPA (index.html) → API Router (api() function)
 - **SPA integration:** Supabase client created via `createClient(SUPABASE_URL, SUPABASE_ANON_KEY)`. Anon key is safe to expose (RLS enforces auth). Auth state managed via `onAuthStateChange` listener.
 - **Cloud CRUD pattern:** Local-first (IndexedDB save) → Supabase REST API (`/rest/v1/{entity}`). Offline sync queue replays pending operations.
 - **Schema:** `schema.sql` in repo root — idempotent migration file.
+- **Integrations:** Supabase connected to both Vercel (preview deployments, DB branching) and GitHub (schema sync, CI/CD).
 
 ### 3.2 Vercel (SPA Deployment)
 - **Deployed URL:** `https://skillstack-learn.vercel.app`
