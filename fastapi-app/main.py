@@ -44,7 +44,7 @@ import httpx
 import aiosqlite
 from fastapi import FastAPI, Form, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -206,6 +206,16 @@ NOTESHEET_LIMIT = 50  # max notesheets per account
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+NOTESHEET_SYSTEM_PROMPT = """You are a math tutor creating well-formed study notes. MATH-STRICT RULES (never violate):
+1) NEVER use LaTeX: no backslash commands (\\frac, \\mod, \\times, \\cdot, \\wedge, \\Theta, etc.), no $ or $$ delimiters, no { } math grouping.
+2) Use ONLY plain keyboard math: / for fractions (e.g. 3/4), * for multiplication, ^ for exponents (e.g. x^2), parentheses for grouping.
+3) Tables: use ONLY Markdown pipe tables (| col | col |, then |---|---|, then data rows). Put one completely blank line immediately BEFORE and AFTER every table so marked.js parses correctly.
+4) Headings: never repeat a heading — write "Example 1" directly, not "Example" then "Example 1".
+5) Close all **bold** and `code` spans on the same line. Skip empty sections."""
+
+NOTESHEET_EDIT_SYSTEM_PROMPT = NOTESHEET_SYSTEM_PROMPT + " Preserve existing content unless the edit instruction says otherwise."
 
 
 def _clean_latex(text: str) -> str:
@@ -423,18 +433,25 @@ async def _count_notesheets(db) -> int:
 
 async def _ollama_generate(prompt: str, system: str = "") -> str:
     """Call Ollama and return the generated text."""
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        payload = {
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-        }
-        if system:
-            payload["system"] = system
-        resp = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("response", "")
+    import traceback
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            payload = {
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            }
+            if system:
+                payload["system"] = system
+            resp = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("response", "")
+    except Exception as exc:
+        print(f"[OLLAMA ERROR] {exc}", flush=True)
+        traceback.print_exc()
+        raise
 
 
 # ── PDF Text Extraction (pdftotext + OCR fallback) ──────────────────────
@@ -505,7 +522,7 @@ async def _generate_notesheet_from_text(text: str, topic: str) -> tuple[str, str
     max_chars = 8000
     truncated = text[:max_chars] if len(text) > max_chars else text
 
-    system = "You are a math tutor creating well-formed study notes. CRITICAL RULES: 1) NEVER use LaTeX or any backslash commands: no \\wedge, \\Theta, \\times, \\cdot, \\{ \\}, or any \\-prefixed token. Use plain keyboard symbols: ^ for exponents, * for multiplication, ( ) for grouping (example: x^(m+n) not x^{m+n}). Write fractions as a/b. 2) Build tables using ONLY standard Markdown pipe syntax: | H1 | H2 | then |---|---| then | a | b |. You MUST put a completely blank line immediately before and immediately after every table — otherwise the markdown parser breaks. 3) NEVER repeat a heading — output \"Example 1\" directly, never \"Example\" then later \"Example 1\". 4) Always close bold (**) and backtick (`) spans on the same line. 5) Skip empty sections entirely."
+    system = NOTESHEET_SYSTEM_PROMPT
     prompt = f"""Create comprehensive study notes from the following lesson material on: {topic}
 
 Lesson material:
@@ -526,7 +543,11 @@ Use markdown formatting:
 
 Make the notes visually organized and easy to scan at a glance."""
 
-    raw = await _ollama_generate(prompt, system)
+    try:
+        raw = await _ollama_generate(prompt, system)
+    except Exception as exc:
+        print(f"[NOTESHEET GEN ERROR] topic={topic!r}: {exc}", flush=True)
+        raise
     cleaned = raw.split(" response")[-1] if " response" in raw else raw
     cleaned = cleaned.replace(" response", "").strip()
     cleaned = _clean_latex(cleaned)
@@ -577,7 +598,14 @@ async def pdf_notesheet_stream(
             yield _sse({"stage": "generating", "progress": 55, "message": "Generating notesheet with AI…"})
 
             actual_topic = topic.strip() or ext
-            title, content = await _generate_notesheet_from_text(text, actual_topic)
+            try:
+                title, content = await _generate_notesheet_from_text(text, actual_topic)
+            except Exception as exc:
+                print(f"[PDF NOTESHEET ERROR] {exc}", flush=True)
+                import traceback
+                traceback.print_exc()
+                yield _sse({"stage": "error", "progress": 0, "message": f"AI generation failed: {exc}"})
+                return
 
             yield _sse({"stage": "generating", "progress": 80, "message": "Notesheet generated!"})
 
@@ -628,7 +656,7 @@ async def generate_notesheet(req: AINotesheetRequest):
     count = await _count_notesheets(db)
     if count >= NOTESHEET_LIMIT:
         raise HTTPException(429, f"Notesheet limit reached (max {NOTESHEET_LIMIT}). Delete old notesheets to create more.")
-    system = "You are a math tutor creating well-formed study notes. CRITICAL RULES: 1) NEVER use LaTeX or any backslash commands: no \\wedge, \\Theta, \\times, \\cdot, \\{ \\}, or any \\-prefixed token. Use plain keyboard symbols: ^ for exponents, * for multiplication, ( ) for grouping (example: x^(m+n) not x^{m+n}). Write fractions as a/b. 2) Build tables using ONLY standard Markdown pipe syntax: | H1 | H2 | then |---|---| then | a | b |. You MUST put a completely blank line immediately before and immediately after every table — otherwise the markdown parser breaks. 3) NEVER repeat a heading — output \"Example 1\" directly, never \"Example\" then later \"Example 1\". 4) Always close bold (**) and backtick (`) spans on the same line. 5) Skip empty sections entirely."
+    system = NOTESHEET_SYSTEM_PROMPT
     source = f"\n\nSource material:\n{req.source_text}" if req.source_text else ""
     prompt = f"""Create comprehensive study notes for: {req.topic}{source}
 
@@ -646,7 +674,11 @@ Use markdown formatting:
 - Use **bold** for key terms
 
 Make the notes visually organized and easy to scan at a glance."""
-    raw = await _ollama_generate(prompt, system)
+    try:
+        raw = await _ollama_generate(prompt, system)
+    except Exception as exc:
+        print(f"[NOTESHEET API ERROR] topic={req.topic!r}: {exc}", flush=True)
+        raise HTTPException(500, f"AI generation failed: {exc}") from exc
     cleaned = raw.split(" response")[-1] if "response" in raw else raw
     cleaned = cleaned.replace(" response", "").strip()
     cleaned = _clean_latex(cleaned)
@@ -825,7 +857,14 @@ async def youtube_notesheet_stream(req: YouTubeRequest):
         yield _sse({"stage": "generating", "progress": 55, "message": "Generating notesheet with AI…"})
 
         actual_topic = req.topic.strip() or video_title
-        title, content = await _generate_notesheet_from_text(text, actual_topic)
+        try:
+            title, content = await _generate_notesheet_from_text(text, actual_topic)
+        except Exception as exc:
+            print(f"[YOUTUBE NOTESHEET ERROR] {exc}", flush=True)
+            import traceback
+            traceback.print_exc()
+            yield _sse({"stage": "error", "progress": 0, "message": f"AI generation failed: {exc}"})
+            return
 
         yield _sse({"stage": "generating", "progress": 80, "message": "Notesheet generated!"})
 
@@ -1010,6 +1049,22 @@ async def delete_bookmark(bm_id: str):
 from pathlib import Path
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+STATIC_DIR = Path(__file__).parent / "static"
+
+
+@app.get("/favicon.ico", response_class=FileResponse)
+async def serve_favicon():
+    return STATIC_DIR / "favicon.ico"
+
+
+@app.get("/apple-touch-icon.png", response_class=FileResponse)
+async def serve_apple_touch_icon():
+    return STATIC_DIR / "apple-touch-icon.png"
+
+
+@app.get("/icons/favicon.svg", response_class=FileResponse)
+async def serve_favicon_svg():
+    return STATIC_DIR / "icons" / "favicon.svg"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1033,7 +1088,7 @@ async def serve_spa():
 async def edit_notesheet(req: AIEditNotesheetRequest):
     """Edit an existing notesheet using AI. Takes the current content and an
     instruction, returns edited content."""
-    system = "You are a math tutor editing study notes. Preserve all existing content unless the user asks to change it."
+    system = NOTESHEET_EDIT_SYSTEM_PROMPT
     prompt = f"""Here are some study notes:
 
 {req.content}
@@ -1041,7 +1096,11 @@ async def edit_notesheet(req: AIEditNotesheetRequest):
 Edit these notes according to this instruction: {req.instruction}
 
 Return the COMPLETE edited notes in markdown format. Do not truncate or summarize — return the full content with the requested changes applied."""
-    raw = await _ollama_generate(prompt, system)
+    try:
+        raw = await _ollama_generate(prompt, system)
+    except Exception as exc:
+        print(f"[NOTESHEET EDIT ERROR] {exc}", flush=True)
+        raise HTTPException(500, f"AI edit failed: {exc}") from exc
     cleaned = raw.split(" response")[-1] if " response" in raw else raw
     cleaned = cleaned.replace(" response", "").strip()
     cleaned = _clean_latex(cleaned)
