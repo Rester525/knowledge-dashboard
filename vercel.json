@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/live", "destination": "https://homeserver.buri-chromatic.ts.net/live" },
+    { "source": "/ready", "destination": "https://homeserver.buri-chromatic.ts.net/ready" },
     { "source": "/api/(.*)", "destination": "https://homeserver.buri-chromatic.ts.net/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
