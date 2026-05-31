@@ -146,16 +146,17 @@ When `_isCloudUser` is true, the `api()` function routes CRUD operations (notes,
 
 ## Current Session Context
 
-_Last worked on: 2026-05-30_
+_Last worked on: 2026-06-04_
 
-### Infrastructure (2026-05-30)
+### Infrastructure (2026-06-04)
 
-1. **Vercel proxies /api/* to homeserver via Tailscale Funnel.** `vercel.json` rewrites `/api/(.*)` → `https://homeserver.buri-chromatic.ts.net/api/$1`. AI features (PDF upload, YouTube notesheets, AI editing) now work from `skillstack-learn.vercel.app`. Verified end-to-end: upload → extract → Ollama → save.
+1. **Vercel proxies /api/* to homeserver via Tailscale Funnel.** `vercel.json` rewrites `/api/(.*)` → `https://homeserver.buri-chromatic.ts.net/api/$1`. AI features (PDF upload, YouTube notesheets, AI editing) now work from `skillstack-learn.vercel.app`. Verified end-to-end: upload → extract → AI → save.
 2. **Migrated from venv/pip to uv.** Replaced `requirements.txt` with `pyproject.toml` + `uv.lock`. Deterministic dependency management, 10-100x faster installs.
 3. **Added pydantic-settings** for Twelve-Factor compliant config. Dynamic `$PORT` env var, CORS origins driven from Settings class. `/live` and `/ready` health probe endpoints.
 4. **Added PyMuPDF fallback** for PDF text extraction on Windows (homeserver). 3-stage pipeline: `pdftotext` → PyMuPDF → Ollama OCR. 60s timeout with SSE error events.
 5. **Fixed ChromaDB:** `get_or_create_collection` for cross-version compatibility, non-empty metadata for add/update operations.
 6. **ADR 0001** created at `docs/architecture/decisions/0001-port-migration-and-uv.md`.
+7. **HF Inference API** as primary AI backend. `_ollama_generate()` tries HF Inference API (Qwen2.5-7B-Instruct) first if `HF_TOKEN` env var is set, falls back to Ollama qwen3:8b on failure. No new deps — uses existing `httpx`. Set `HF_TOKEN` on the homeserver to enable. Notesheet generation drops from 20-40s to 3-8s.
 
 ### Completed Features
 

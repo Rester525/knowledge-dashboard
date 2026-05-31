@@ -6,12 +6,12 @@
 - **Vanilla JS SPA** — no framework. Single `templates/index.html` served at `/`
 - **SQLite** via `aiosqlite` (WAL mode, `check_same_thread=False`)
 - **ChromaDB** + `sentence-transformers/all-MiniLM-L6-v2` for semantic search
-- **Ollama** (internal network) for AI features
+- **HF Inference API** + **Ollama** for AI features (primary → fallback)
 - **Local network** for development access
 
 ## Key Files
 
-- `main.py` — all API endpoints, DB init, Ollama helpers
+- `main.py` — all API endpoints, DB init, AI helpers (HF + Ollama)
 - `search_engine.py` — ChromaDB embedding + search singleton
 - `templates/index.html` — SPA (mirror of root index.html)
 - `dashboard.db` — SQLite database (auto-created)
@@ -49,6 +49,7 @@ Tunnel: (optional — use for remote access)
 
 ## AI Models
 
-- Text generation: `qwen3:8b` (notesheets, quizzes)
-- Vision/OCR: `qwen2.5vl:7b` (PDF OCR fallback)
+- Text generation: `Qwen/Qwen2.5-7B-Instruct` via HF Inference API (primary, ~3-8s), falls back to `qwen3:8b` via Ollama (secondary)
+- Vision/OCR: `qwen2.5vl:7b` via Ollama (PDF OCR fallback)
 - PDF text extraction: `pdftotext` (poppler-utils), OCR fallback via Ollama vision
+- **Env var**: Set `HF_TOKEN` on the homeserver to enable HF Inference API as primary path
