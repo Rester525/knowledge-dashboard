@@ -482,8 +482,8 @@ OLLAMA_HOST = "http://100.65.172.94:11434"
 OLLAMA_MODEL = "qwen3:8b"
 
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
-HF_MODEL = "Qwen/Qwen2.5-7B-Instruct"
-HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}/v1/chat/completions"
+HF_MODEL = "Qwen/Qwen2.5-7B-Instruct:hf-inference"
+HF_API_BASE = "https://router.huggingface.co/v1"
 
 async def _count_notesheets(db) -> int:
     """Count existing notesheets (notes with title starting with 'Notesheet:')."""
@@ -509,12 +509,13 @@ async def _hf_generate(prompt: str, system: str = "") -> str:
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
-                HF_API_URL,
+                f"{HF_API_BASE}/chat/completions",
                 headers={
                     "Authorization": f"Bearer {HF_TOKEN}",
                     "Content-Type": "application/json",
                 },
                 json={
+                    "model": HF_MODEL,
                     "messages": messages,
                     "max_tokens": 4096,
                     "temperature": 0.7,
