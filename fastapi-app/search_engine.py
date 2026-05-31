@@ -63,7 +63,8 @@ def _add_note_to_collection(note_id: str, text: str, metadata: dict | None = Non
     coll = _ensure_collection()
     model = _get_model()
     embedding = model.encode(text).tolist()
-    coll.add(ids=[note_id], embeddings=[embedding], metadatas=[metadata or {}])
+    meta = metadata if metadata else {"source": "notesheet"}
+    coll.add(ids=[note_id], embeddings=[embedding], metadatas=[meta])
 
 
 def _update_note_in_collection(note_id: str, text: str, metadata: dict | None = None):
@@ -71,7 +72,8 @@ def _update_note_in_collection(note_id: str, text: str, metadata: dict | None = 
     coll = _ensure_collection()
     model = _get_model()
     embedding = model.encode(text).tolist()
-    coll.update(ids=[note_id], embeddings=[embedding], metadatas=[metadata or {}])
+    meta = metadata if metadata else {"source": "notesheet"}
+    coll.update(ids=[note_id], embeddings=[embedding], metadatas=[meta])
 
 
 def _delete_note_from_collection(note_id: str):
