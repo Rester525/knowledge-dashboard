@@ -5,11 +5,11 @@ set -e
 # Start script for the Skillstack FastAPI backend
 # ──────────────────────────────────────────────────────────────
 # Usage:
-#   ./start.sh              — start server on port 8000
+#   ./start.sh              — start server on port 8080
 #   ./start.sh --port 8001  — start server on custom port
 # ──────────────────────────────────────────────────────────────
 
-PORT=8000
+PORT=8080
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
