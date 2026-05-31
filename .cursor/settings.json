@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "slack": {
+      "enabled": true
+    },
+    "modern-web-guidance": {
+      "enabled": true
+    },
+    "browse": {
+      "enabled": true
+    },
+    "cursor-sdk": {
+      "enabled": true
+    }
+  }
+}

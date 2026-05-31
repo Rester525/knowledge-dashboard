@@ -1,39 +1,16 @@
 {
   "recommendations": [
-    // HTML, CSS, JS — core SPA
-    "ecmel.vscode-html-css",
-    "xabikos.JavaScriptSnippets",
-    "christian-kohler.path-intellisense",
-
-    // Tailwind CSS
-    "bradlc.vscode-tailwindcss",
-
-    // Python — FastAPI + ChromaDB backend
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "njpwerner.autodocstring",
-
-    // Next.js / TypeScript / React
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
-
-    // Testing
+    "bradlc.vscode-tailwindcss",
+    "ecmel.vscode-html-css",
+    "ms-python.python",
+    "ms-python.debugpy",
     "ms-playwright.playwright",
-
-    // Database — Supabase / Neon / SQLite
-    "mtxr.sqltools",
-    "ckolkman.vscode-postgres",
-    "cweijan.vscode-database-client2",
-
-    // API testing
-    "rangav.vscode-thunder-client",
-
-    // Git
-    "eamodio.gitlens",
-
-    // Polish
     "usernamehw.errorlens",
-    "pkief.material-icon-theme",
-    "aaron-bond.better-comments"
+    "eamodio.gitlens",
+    "yoavbls.pretty-ts-errors",
+    "ckolkman.vscode-postgres",
+    "christian-kohler.path-intellisense"
   ]
 }

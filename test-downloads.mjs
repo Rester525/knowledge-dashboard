@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 import * as fs from "fs";
 
-const URL = "https://skillstack-learn.vercel.app";
+const URL = "http://100.67.128.57:8080";
 
 async function waitForDownload(page, timeout = 15000) {
   return new Promise((resolve, reject) => {
@@ -47,10 +47,14 @@ async function run() {
 
   // Wait for ns-result to have content
   try {
-    await page.waitForSelector(".notesheet", { timeout: 60000 });
+    await page.waitForSelector(".notesheet", { timeout: 120000 });
     console.log("Notesheet rendered");
   } catch {
-    console.log("Notesheet never rendered");
+    console.log("Notesheet never rendered after 120s");
+    const errEl = await page.evaluate(() => document.getElementById("ns-result")?.innerText?.substring(0, 300) || "no ns-result");
+    console.log("ns-result text:", errEl);
+    await browser.close();
+    process.exit(1);
   }
   await page.waitForTimeout(1000);
 

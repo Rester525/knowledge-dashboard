@@ -50,5 +50,6 @@
   "workbench.iconTheme": "material-icon-theme",
   "files.associations": {
     "*.mjs": "javascript"
-  }
+  },
+  "cursorpyright.analysis.typeCheckingMode": "basic"
 }

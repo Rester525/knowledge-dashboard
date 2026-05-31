@@ -12,7 +12,7 @@ A single-page vanilla JS knowledge management dashboard — notes, todos, bookma
 
 **Live URLs:**
 - SPA (Vercel): https://skillstack-learn.vercel.app
-- FastAPI Backend: localhost:8000
+- FastAPI Backend: localhost:8080
 - Next.js App: https://next-app-weld-eight.vercel.app
 
 **GitHub:** `Rester525/knowledge-dashboard`
@@ -81,11 +81,12 @@ User → SPA (index.html) → API Router (api() function)
 - **Config:** `vercel.json` with SPA rewrites (`"rewrites": [{"source": "/(.*)", "destination": "/index.html"}]`)
 - **Build:** `vercel.json` triggers `vite build` via `@vitejs/plugin-legacy` to bundle `index.html`
 - **Deployment:** `npx vercel deploy --prod` from repo root, or git push to main triggers auto-deploy
+- **Static assets:** `public/` directory copied to build output by Vite. Root-level files (`favicon.ico`, `apple-touch-icon.png`) served before SPA rewrite.
 - **GitHub repo:** `Rester525/knowledge-dashboard`
 
 ### 3.3 FastAPI (Local Backend)
 - **Location:** `fastapi-app/main.py`
-- **Server:** `uvicorn main:app --host 0.0.0.0 --port 8000`
+- **Server:** `uvicorn main:app --host 0.0.0.0 --port 8080`
 - **Database:** SQLite via `aiosqlite` (WAL mode, `check_same_thread=False`)
   - Same schema as Supabase (`notes`, `todos`, `bookmarks` tables)
   - Auto-created at `fastapi-app/dashboard.db`
@@ -103,7 +104,8 @@ User → SPA (index.html) → API Router (api() function)
 - **CRUD endpoints:** Standard REST for `/api/notes`, `/api/todos`, `/api/bookmarks`
 - **Bulk delete:** `POST /api/notes/delete-old` accepts `{older_than_days, title_prefix?}`
 - **Stats:** `GET /api/stats`, `GET /api/notesheet/stats`
-- **CORS:** Whitelists Vercel domains + localhost:8000
+- **CORS:** Whitelists Vercel domains + localhost:8080
+- **Static files:** Root-level static assets (`/favicon.ico`, `/apple-touch-icon.png`, `/icons/favicon.svg`) served via `FileResponse` routes in `main.py`. Files stored in `fastapi-app/static/`.
 
 ### 3.4 Ollama (AI)
 - **Host:** Internal network address (set via `OLLAMA_BASE` env var in FastAPI)
@@ -220,18 +222,31 @@ skillstack/
 ├── sw.js                          # Service worker (offline caching)
 ├── schema.sql                     # Supabase schema migration
 ├── package.json                   # Dependencies for Vite
+├── favicon.ico                    # Book stack favicon (16+32+64px PNG)
+├── apple-touch-icon.png           # 180x180 iOS home screen icon
 ├── kd-test.mjs                    # Core E2E tests
 ├── kd-features.mjs               # Feature tests
-├── screenshot-test.mjs            # Screenshot capture
+├── screenshot-test.mjs            # Screenshot capture (13 screenshots)
 ├── test-full.mjs                  # Full CRUD tests
 ├── test-pdf-notesheet.mjs         # PDF notesheet tests
 ├── test-vercel-pdf.mjs            # Vercel PDF tests
-├── test-downloads.mjs             # Export tests
+├── test-downloads.mjs             # Export tests (PDF + Drive)
+│
+├── icons/
+│   └── favicon.svg                # SVG favicon (book stack, primary format for modern browsers)
+│
+├── public/                        # Vite static assets
+│   ├── favicon.ico
+│   └── apple-touch-icon.png
 │
 ├── fastapi-app/                   # FastAPI backend
 │   ├── main.py                    # All API endpoints (~600 lines)
 │   ├── search_engine.py           # ChromaDB vector search
 │   ├── dashboard.db               # SQLite database (auto-created)
+│   ├── static/                    # Static files served by FastAPI
+│   │   ├── favicon.ico
+│   │   ├── apple-touch-icon.png
+│   │   └── icons/favicon.svg
 │   ├── templates/index.html       # Mirror of root index.html
 │   └── CLAUDE.md                  # FastAPI-specific context
 │
@@ -266,7 +281,7 @@ npx vercel deploy --prod
 
 # Run FastAPI backend locally
 cd ~/my-project/skillstack/fastapi-app
-venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
 
 
 # Run tests

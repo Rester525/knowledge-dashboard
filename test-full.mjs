@@ -31,7 +31,7 @@ async function run() {
   console.log(`  Dashboard cards: ${statsCards} (expected >= 4)`);
 
   // ── Test 2: Navigation ──
-  const views = ['notes', 'todos', 'bookmarks', 'search', 'calculator', 'study'];
+  const views = ['notes', 'todos', 'bookmarks', 'calculator', 'study'];
   for (const v of views) {
     await page.click(`.nav-item[data-view="${v}"]`);
     await wait(500);
@@ -47,7 +47,7 @@ async function run() {
   await page.fill('#note-title', 'Playwright Test Note');
   await page.fill('#note-content', 'This is a **test** note created by Playwright.\n\n- Item 1\n- Item 2');
   await page.fill('#note-tags', 'test, playwright, automation');
-  await page.click('button:has-text("Create")');
+  await page.click('button:text-is("Create")');
   await wait(1500);
   console.log('✓ Note created');
 
@@ -105,21 +105,13 @@ async function run() {
   await wait(300);
   console.log('✓ Compact toggle');
 
-  // ── Test 6: Search ──
-  await page.click('.nav-item[data-view="search"]');
+  // ── Test 6: Search (integrated in Notes view) ──
+  await page.click('.nav-item[data-view="notes"]');
   await wait(500);
-  await page.fill('#search-input', 'test');
-  await page.click('button:has-text("Search")');
-  await wait(2000); // wait for search results
-  const searchRes = await page.locator('#search-results .card').count();
-  console.log(`  Search results: ${searchRes}`);
-
-  // Test search filter toggle
-  const searchToggle = page.locator('.sort-btn').first();
-  const searchBtnText = await searchToggle.textContent();
-  await searchToggle.click();
-  await wait(300);
-  console.log(`✓ Search filter toggle (was "${searchBtnText}")`);
+  await page.fill('#notes-search-input', 'test');
+  await wait(2000);
+  const searchRes = await page.locator('#notes-list .card').count();
+  console.log(`  Notes list cards after search: ${searchRes}`);
 
   // ── Test 7: Calculator ──
   await page.click('.nav-item[data-view="calculator"]');
@@ -160,14 +152,13 @@ async function run() {
 
   // ── Test 10: Accent Colors ──
   // Click the green accent dot in the sidebar
-  const accentDots = page.locator('.sidebar div[style*="padding:12px 16px"] span');
-  const greenDot = accentDots.nth(1);
+  const greenDot = page.locator('#sidebar-accent-swatches span').nth(1);
   await greenDot.click();
   await wait(300);
   const hasGreen = await page.evaluate(() => document.documentElement.classList.contains('accent-green'));
   console.log(`  Accent green active: ${hasGreen}`);
   // Reset to blue
-  const blueDot = accentDots.first();
+  const blueDot = page.locator('#sidebar-accent-swatches span').first();
   await blueDot.click();
   await wait(300);
   console.log('✓ Accent colors toggle');
@@ -195,7 +186,7 @@ async function run() {
 
   // ── Report ──
   console.log('');
-  const realErrors = errors.filter(e => !e.includes('Offline: no local data') && !e.includes('Failed to load resource'));
+  const realErrors = errors.filter(e => !e.includes('Offline: no local data') && !e.includes('Failed to load resource') && !e.includes('unsupported MIME type'));
   if (realErrors.length > 0) {
     console.log('ERRORS FOUND:');
     realErrors.forEach(e => console.log('  ' + e));

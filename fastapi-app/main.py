@@ -47,6 +47,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    """Application config driven by environment variables.
+    Twelve-Factor compliant — all deployment-varying parameters are externalised.
+    """
+    app_name: str = "Skillstack API"
+    host: str = "0.0.0.0"
+    port: int = 8080
+    cors_origins: list[str] = [
+        "https://skillstack-learn.vercel.app",
+        "https://skillstack-kd.vercel.app",
+        "http://localhost:8080",
+        "http://localhost:5173",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:5173",
+    ]
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Cached singleton — reads .env once, lives in memory for the process lifetime."""
+    return Settings()
+
 
 # ── Lifespan (replaces deprecated on_startup/on_shutdown) ───────────────────
 # WHY LIFESPAN: async startup ensures the DB connection pool is ready before
@@ -72,14 +104,7 @@ app = FastAPI(title="Knowledge Dashboard", version="2.0.0", lifespan=lifespan)
 # ── CORS + Private Network Access (allow Vercel SPA → localhost backend) ──
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://skillstack-learn.vercel.app",
-        "https://skillstack-kd.vercel.app",
-        "http://localhost:8000",
-        "http://localhost:5173",
-        "http://127.0.0.1:8000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=get_settings().cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -93,6 +118,38 @@ async def _private_network_access(request, call_next):
     response: Response = await call_next(request)
     response.headers.append("Access-Control-Allow-Private-Network", "true")
     return response
+
+
+# ── Health probes ─────────────────────────────────────────────────────────
+
+@app.get("/live")
+async def liveness():
+    """Lightweight liveness — pure process check, no I/O.
+    For orchestrator liveness probes: if this hangs, restart the pod."""
+    return {"status": "alive"}
+
+@app.get("/ready")
+async def readiness():
+    """Readiness probe — verifies the database is reachable.
+    Bounded by a 5-second timeout so a hung DB can't wedge the probe."""
+    db_ok = False
+    try:
+        async with aiosqlite.connect(
+            os.path.join(os.path.dirname(__file__), "dashboard.db"),
+            check_same_thread=False,
+        ) as db:
+            db.row_factory = aiosqlite.Row
+            await asyncio.wait_for(db.execute("SELECT 1"), timeout=5.0)
+            db_ok = True
+    except Exception:
+        db_ok = False
+
+    if not db_ok:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "database": "down"},
+        )
+    return {"status": "healthy", "database": "up"}
 
 
 # ── Database schema (auto-migrate on start) ────────────────────────────────
@@ -1140,4 +1197,5 @@ async def get_notesheet_stats():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    settings = get_settings()
+    uvicorn.run("main:app", host=settings.host, port=settings.port, reload=True)

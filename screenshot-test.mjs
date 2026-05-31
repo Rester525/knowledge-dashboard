@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { writeFileSync } from 'fs';
 
-const URL = 'http://127.0.0.1:8081';
+const URL = 'https://skillstack-learn.vercel.app';
 
 async function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 

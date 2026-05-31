@@ -42,9 +42,13 @@ Single-page vanilla JS knowledge management app — notes, todos, bookmarks, cal
 | `test-full.mjs` | Full CRUD tests |
 | `test-pdf-notesheet.mjs` | PDF notesheet E2E test (localhost backend) — 4 tests |
 | `test-vercel-pdf.mjs` | PDF notesheet E2E test (Vercel SPA → tunnel) — 3 tests |
+| `test-downloads.mjs` | PDF + Google Drive export tests (requires local FastAPI + Ollama) |
 | `schema.sql` | Idempotent Supabase migration — tables, RLS policies, indexes |
 | `vercel.json` (root) | SPA rewrites config for Vercel |
 | `PROJECT_BRIEF.md` | Comprehensive project reference (for sharing with AI tools like Gemini) |
+| `favicon.ico` | Book stack favicon (16+32+64px embedded PNGs) — repo root + `public/` + `fastapi-app/static/` |
+| `apple-touch-icon.png` | 180x180 book stack icon for iOS — same 3 locations |
+| `icons/favicon.svg` | Book stack SVG for modern browsers (primary favicon format) |
 
 ## Views & Navigation
 
@@ -78,6 +82,7 @@ Search was merged into Notes view. Ctrl+F navigates to Notes and focuses search.
 - **Mass delete**: Collapsible age-based bulk delete bar in Saved Notesheets tab — 7d/30d/90d/6mo/1yr options, calls `POST /api/notes/delete-old`
 - **Per-account notesheet limit**: 50 notesheets max, enforced server-side with 429 response
 - **PROJECT_BRIEF.md**: Comprehensive project reference document for sharing with AI tools (Gemini, etc.)
+- **Favicon**: Book stack icon design (3 stacked books, cyan gradient, gold bookmark). Available as SVG (primary), .ico (fallback), apple-touch-icon.png (iOS), and mask-icon (Safari). Served at `/favicon.ico`, `/apple-touch-icon.png`, and `/icons/favicon.svg` on both Vercel and FastAPI.
 
 ## Tests
 
@@ -137,7 +142,7 @@ When `_isCloudUser` is true, the `api()` function routes CRUD operations (notes,
 
 ## Current Session Context
 
-_Last worked on: 2026-05-26_
+_Last worked on: 2026-05-30_
 
 ### Completed Features
 
@@ -151,15 +156,25 @@ All 5+2 requested features implemented, deployed, and verified:
 7. **Mass delete at top of saved notesheets** — Collapsible bar in saved tab header, more visible than Settings version.
 8. **PROJECT_BRIEF.md** — Comprehensive 11-section project reference document for sharing with AI tools.
 
-### Bug Fixes
+### Completed
 
-- **"Save to Google Docs" HTML fallback timed out in headless/Playwright.** GIS OAuth popup hung indefinitely with no user interaction. Fix: 8-second `Promise.race` timeout around `requestDriveToken()`.
+1. **Favicon — book stack design.** Three-book stack icon with cyan gradient (`#0ea5e9` → `#0369a1`) and gold bookmark. Generated as SVG (primary), .ico with 3 embedded PNG sizes (16/32/64px), and 180x180 apple-touch-icon. Served at repo root for Vercel + FastAPI static routes.
+2. **`test-downloads.mjs` fixed and passing.** Root cause: test targeted Vercel URL (no FastAPI backend). SPA `API_BASE` was hardcoded to `localhost:8000` (port conflict with workspace-mcp). Fixed by making `API_BASE` dynamic (`location.port`) and updating test to point at local FastAPI on port 8080. Template `index.html` now uses relative URLs (`API_BASE = ""`) for same-origin requests.
+3. **`test-full.mjs` fixed.** 3 stale selectors updated: removed `'search'` from nav views (merged into Notes), `button:has-text("Create")` → exact match (was matching "Create Account"), `#search-input` → `#notes-search-input`.
+4. **`screenshot-test.mjs` fixed.** URL updated from `http://127.0.0.1:8081` to `https://skillstack-learn.vercel.app`.
+
+### Infrastructure Notes
+
+- **Ollama runs on homeserver** (`100.65.172.94:11434`), accessible via Tailscale. FastAPI configured with `OLLAMA_HOST = "http://100.65.172.94:11434"`. Available models: `qwen3:8b`, `qwen2.5vl:7b`, `fin-o1:8b`, `fin-r1:7b`, `qwen3:30b-a3b`.
+- **FastAPI runs on port 8080** (port 8000 occupied by workspace-mcp process). `API_BASE` now dynamically detects port.
 
 ### Test Results
 
 - `kd-test.mjs`: 26/26 passed
 - `kd-features.mjs`: 15/15 passed  
-- `test-downloads.mjs`: PDF (3058 bytes) ✓ + HTML fallback (5048 bytes) ✓
+- `test-full.mjs`: All passed, no errors
+- `test-downloads.mjs`: PDF (619KB) ✓ + HTML fallback (4KB) ✓ (requires local FastAPI + Ollama)
+- `screenshot-test.mjs`: 13/13 captured
 
 ## Project-level CLAUDE.md files
 

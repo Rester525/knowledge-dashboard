@@ -28,9 +28,22 @@
 ## Running Locally
 
 ```bash
-cd /home/rishi-reddy/my-project/knowledge-dashboard/fastapi-app
-venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+# Recreate environment (if needed):
+cd /home/rishi-reddy/my-project/skillstack/fastapi-app
+uv sync
+
+# Start the server:
+.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
 ```
+
+Port is configurable via `PORT` env var:
+```bash
+PORT=9090 .venv/bin/uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+Health probes:
+- `/live` — lightweight process liveness (orchestrator use)
+- `/ready` — database connectivity check (returns 503 if degraded)
 
 Tunnel: (optional — use for remote access)
 
