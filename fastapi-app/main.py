@@ -512,39 +512,81 @@ async def _ollama_generate(prompt: str, system: str = "") -> str:
         raise
 
 
-# ── PDF Text Extraction (pdftotext + OCR fallback) ──────────────────────
+# ── PDF Text Extraction (PyMuPDF → pdftotext → OCR fallback) ────────────
 
 def _extract_pdf_text_sync(pdf_path: str) -> str:
-    """Extract text from PDF. Falls back to OCR via Ollama vision if needed.
+    """Extract text from PDF. Tries pdftotext first (Linux), falls back to
+    PyMuPDF (works everywhere), then OCR via Ollama vision for scanned PDFs.
 
-    WHY TWO-STAGE: pdftotext handles 90%+ of text PDFs instantly. Only
-    scanned/image PDFs pay the OCR cost (pdftoppm → vision model).
+    WHY THREE-STAGE: pdftotext handles 90%+ of text PDFs instantly on Linux.
+    PyMuPDF covers Windows and environments without poppler-utils. OCR is the
+    last resort for scanned/image-only PDFs.
     """
-    # Stage 1: fast path — pdftotext
-    result = subprocess.run(
-        ["pdftotext", "-layout", pdf_path, "-"],
-        capture_output=True, text=True, timeout=30,
-    )
-    text = result.stdout.strip() if result.returncode == 0 else ""
-    if len(text) >= 50:
-        return text
+    text = ""
 
-    # Stage 2: OCR fallback — convert pages to images, use Ollama vision
+    # Stage 1: fast path — pdftotext (Linux/macOS with poppler-utils)
+    try:
+        result = subprocess.run(
+            ["pdftotext", "-layout", pdf_path, "-"],
+            capture_output=True, text=True, timeout=30,
+        )
+        text = result.stdout.strip() if result.returncode == 0 else ""
+        if len(text) >= 50:
+            return text
+    except FileNotFoundError:
+        pass  # pdftotext not installed — move to fallback
+
+    # Stage 2: PyMuPDF fallback (works on Windows, no external tools)
+    if len(text) < 50:
+        try:
+            import fitz  # PyMuPDF
+            doc = fitz.open(pdf_path)
+            pages = []
+            for page in doc:
+                pages.append(page.get_text())
+            doc.close()
+            text = "\n\n".join(pages).strip()
+            if len(text) >= 50:
+                return text
+        except ImportError:
+            pass  # PyMuPDF not installed either — move to OCR
+
+    # Stage 3: OCR fallback — convert pages to images, use Ollama vision
+    # Try pdftoppm first, then PyMuPDF page render for Windows
     tmpdir = tempfile.mkdtemp()
     try:
-        subprocess.run(
-            ["pdftoppm", "-png", "-r", "300", pdf_path, os.path.join(tmpdir, "page")],
-            capture_output=True, timeout=60,
-        )
-        pages = sorted(os.listdir(tmpdir))
+        pages = []
+        try:
+            subprocess.run(
+                ["pdftoppm", "-png", "-r", "300", pdf_path, os.path.join(tmpdir, "page")],
+                capture_output=True, timeout=60,
+            )
+            pages = sorted(os.listdir(tmpdir))
+        except FileNotFoundError:
+            pass  # pdftoppm not installed
+
+        # On Windows, render pages with PyMuPDF instead
         if not pages:
-            return text  # give up, return whatever pdftotext got
+            try:
+                import fitz
+                doc = fitz.open(pdf_path)
+                for i, page in enumerate(doc):
+                    pix = page.get_pixmap(dpi=300)
+                    img_path = os.path.join(tmpdir, f"page-{i:04d}.png")
+                    pix.save(img_path)
+                    pages.append(os.path.basename(img_path))
+                doc.close()
+            except ImportError:
+                pass
+
+        if not pages:
+            return text  # give up, return whatever we got
 
         ocr_text_parts = []
-        for page in pages:
-            if not page.endswith(".png"):
+        for page_name in pages:
+            if not page_name.endswith(".png"):
                 continue
-            img_path = os.path.join(tmpdir, page)
+            img_path = os.path.join(tmpdir, page_name)
             with open(img_path, "rb") as f:
                 img_b64 = base64.b64encode(f.read()).decode()
 
