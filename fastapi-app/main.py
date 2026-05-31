@@ -582,6 +582,11 @@ def _extract_pdf_text_sync(pdf_path: str) -> str:
         if not pages:
             return text  # give up, return whatever we got
 
+        # Try both Tailscale IP and localhost for Ollama (Windows may not
+        # resolve the Tailscale IP if the service is on the same machine)
+        _OCR_TIMEOUT = 30.0
+        _OLLAMA_HOSTS = [OLLAMA_HOST, "http://localhost:11434"]
+
         ocr_text_parts = []
         for page_name in pages:
             if not page_name.endswith(".png"):
@@ -590,21 +595,26 @@ def _extract_pdf_text_sync(pdf_path: str) -> str:
             with open(img_path, "rb") as f:
                 img_b64 = base64.b64encode(f.read()).decode()
 
-            try:
-                resp = httpx.post(
-                    f"{OLLAMA_HOST}/api/generate",
-                    json={
-                        "model": "qwen2.5vl:7b",
-                        "prompt": "Extract all text from this image. Return only the text, no commentary.",
-                        "images": [img_b64],
-                        "stream": False,
-                    },
-                    timeout=120.0,
-                )
-                resp.raise_for_status()
-                ocr_text_parts.append(resp.json().get("response", ""))
-            except Exception:
-                ocr_text_parts.append("")  # skip failed pages
+            page_text = ""
+            for host in _OLLAMA_HOSTS:
+                try:
+                    resp = httpx.post(
+                        f"{host}/api/generate",
+                        json={
+                            "model": "qwen2.5vl:7b",
+                            "prompt": "Extract all text from this image. Return only the text, no commentary.",
+                            "images": [img_b64],
+                            "stream": False,
+                        },
+                        timeout=_OCR_TIMEOUT,
+                    )
+                    resp.raise_for_status()
+                    page_text = resp.json().get("response", "")
+                    if page_text.strip():
+                        break  # got text, no need to try other hosts
+                except Exception:
+                    continue  # try next host
+            ocr_text_parts.append(page_text)
 
         combined = "\n\n".join(p for p in ocr_text_parts if p.strip())
         return combined if combined else text
@@ -690,7 +700,18 @@ async def pdf_notesheet_stream(
             # ── Stage 2: extract text
             yield _sse({"stage": "extracting", "progress": 20, "message": "Extracting text from PDF…"})
 
-            text = await _extract_pdf_text(pdf_path)
+            try:
+                text = await asyncio.wait_for(_extract_pdf_text(pdf_path), timeout=60.0)
+            except asyncio.TimeoutError:
+                print("[PDF EXTRACTION ERROR] timed out after 60s", flush=True)
+                yield _sse({"stage": "error", "progress": 0, "message": "PDF text extraction timed out. The PDF may be too large or the OCR model is not running."})
+                return
+            except Exception as exc:
+                print(f"[PDF EXTRACTION ERROR] {exc}", flush=True)
+                import traceback
+                traceback.print_exc()
+                yield _sse({"stage": "error", "progress": 0, "message": f"PDF text extraction failed: {exc}"})
+                return
 
             yield _sse({"stage": "extracting", "progress": 45, "message": f"Extracted {len(text)} characters"})
 
