@@ -48,12 +48,14 @@ def _get_client() -> chromadb.ClientAPI:
 # ── Collection helpers (run in thread pool) ─────────────────────────────────
 
 def _ensure_collection():
-    """Get or create the notes collection (synchronous — call via thread)."""
+    """Get or create the notes collection (synchronous — call via thread).
+
+    NOTE: get_or_create_collection atomically returns the existing collection
+    or creates it, avoiding race conditions and exception-type fragility across
+    ChromaDB versions (some raise ValueError, others raise NotFoundError).
+    """
     client = _get_client()
-    try:
-        return client.get_collection(COLLECTION_NAME)
-    except ValueError:
-        return client.create_collection(COLLECTION_NAME)
+    return client.get_or_create_collection(COLLECTION_NAME)
 
 
 def _add_note_to_collection(note_id: str, text: str, metadata: dict | None = None):
