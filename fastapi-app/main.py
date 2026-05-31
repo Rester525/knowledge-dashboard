@@ -476,10 +476,14 @@ async def search_notes_stream(q: str = Query("", min_length=1)):
     )
 
 
-# ── AI: Notesheet & Quiz Generator (via Ollama) ────────────────────────────
+# ── AI: Notesheet & Quiz Generator (via HF Inference API + Ollama fallback) ─
 
 OLLAMA_HOST = "http://100.65.172.94:11434"
 OLLAMA_MODEL = "qwen3:8b"
+
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+HF_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL}/v1/chat/completions"
 
 async def _count_notesheets(db) -> int:
     """Count existing notesheets (notes with title starting with 'Notesheet:')."""
@@ -489,8 +493,55 @@ async def _count_notesheets(db) -> int:
     return rows[0][0] if rows else 0
 
 
+async def _hf_generate(prompt: str, system: str = "") -> str:
+    """Call HuggingFace Inference API and return generated text.
+
+    Uses the chat-completions endpoint (OpenAI-compatible format).
+    Faster than Ollama over Tailscale — runs on HF's GPU infra.
+    """
+    import traceback
+
+    try:
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                HF_API_URL,
+                headers={
+                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "messages": messages,
+                    "max_tokens": 4096,
+                    "temperature": 0.7,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
+    except Exception as exc:
+        print(f"[HF ERROR] {exc}", flush=True)
+        traceback.print_exc()
+        raise
+
+
 async def _ollama_generate(prompt: str, system: str = "") -> str:
-    """Call Ollama and return the generated text."""
+    """Generate text via HF Inference API (fast) with Ollama fallback."""
+    if HF_TOKEN:
+        try:
+            return await _hf_generate(prompt, system)
+        except Exception as exc:
+            print(f"[AI] HF failed, falling back to Ollama: {exc}", flush=True)
+
+    return await _ollama_generate_inner(prompt, system)
+
+
+async def _ollama_generate_inner(prompt: str, system: str = "") -> str:
+    """Call Ollama and return the generated text. (Fallback path.)"""
     import traceback
 
     try:
