@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         "https://skillstack-learn.vercel.app",
         "https://skillstack-kd.vercel.app",
+        "https://homeserver.buri-chromatic.ts.net",
         "http://localhost:8080",
         "http://localhost:5173",
         "http://127.0.0.1:8080",
