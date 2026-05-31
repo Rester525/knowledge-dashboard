@@ -11,8 +11,9 @@
 A single-page vanilla JS knowledge management dashboard — notes, todos, bookmarks, calculator, study timer with AI notesheet generation, search, settings. Has multiple backend implementations.
 
 **Live URLs:**
-- SPA (Vercel): https://skillstack-learn.vercel.app
-- FastAPI Backend: localhost:8080
+- SPA + API Proxy (Vercel): https://skillstack-learn.vercel.app
+- FastAPI Backend (homeserver): https://homeserver.buri-chromatic.ts.net (via Tailscale Funnel)
+- FastAPI Local: http://192.168.1.47:8080
 - Next.js App: https://next-app-weld-eight.vercel.app
 
 **GitHub:** `Rester525/knowledge-dashboard`
@@ -76,17 +77,34 @@ User → SPA (index.html) → API Router (api() function)
 - **Schema:** `schema.sql` in repo root — idempotent migration file.
 - **Integrations:** Supabase connected to both Vercel (preview deployments, DB branching) and GitHub (schema sync, CI/CD).
 
-### 3.2 Vercel (SPA Deployment)
+### 3.2 Vercel (SPA Deployment + API Proxy)
 - **Deployed URL:** `https://skillstack-learn.vercel.app`
-- **Config:** `vercel.json` with SPA rewrites (`"rewrites": [{"source": "/(.*)", "destination": "/index.html"}]`)
+- **Config:** `vercel.json` proxies `/api/*` to homeserver via Tailscale Funnel, SPA rewrites for everything else:
+  ```json
+  {
+    "rewrites": [
+      { "source": "/api/(.*)", "destination": "https://homeserver.buri-chromatic.ts.net/api/$1" },
+      { "source": "/live", "destination": "https://homeserver.buri-chromatic.ts.net/live" },
+      { "source": "/ready", "destination": "https://homeserver.buri-chromatic.ts.net/ready" },
+      { "source": "/(.*)", "destination": "/index.html" }
+    ]
+  }
+  ```
+- **Proxy behavior:** Browser talks same-origin to Vercel. Vercel relays all `/api/*` requests through Tailscale Funnel to the homeserver Windows machine. No CORS issues, no code changes needed.
 - **Build:** `vercel.json` triggers `vite build` via `@vitejs/plugin-legacy` to bundle `index.html`
 - **Deployment:** `npx vercel deploy --prod` from repo root, or git push to main triggers auto-deploy
 - **Static assets:** `public/` directory copied to build output by Vite. Root-level files (`favicon.ico`, `apple-touch-icon.png`) served before SPA rewrite.
 - **GitHub repo:** `Rester525/knowledge-dashboard`
 
-### 3.3 FastAPI (Local Backend)
-- **Location:** `fastapi-app/main.py`
+### 3.3 FastAPI (Homeserver Backend)
+- **Location:** `fastapi-app/main.py` (runs on Windows 11 homeserver `192.168.1.47`)
 - **Server:** `uvicorn main:app --host 0.0.0.0 --port 8080`
+- **Toolchain:** Managed via `uv` (Astral) — `pyproject.toml` + `uv.lock` for deterministic builds
+- **Config:** `pydantic-settings` (Twelve-Factor compliant) — dynamic `$PORT` env var, CORS origins from Settings class
+- **Exposure:** Tailscale Funnel at `https://homeserver.buri-chromatic.ts.net`. Vercel proxies `/api/*` through it.
+- **Health probes:**
+  - `GET /live` — process liveness (pure process check)
+  - `GET /ready` — DB connectivity check with 5s timeout, returns 503 if degraded
 - **Database:** SQLite via `aiosqlite` (WAL mode, `check_same_thread=False`)
   - Same schema as Supabase (`notes`, `todos`, `bookmarks` tables)
   - Auto-created at `fastapi-app/dashboard.db`
@@ -95,23 +113,26 @@ User → SPA (index.html) → API Router (api() function)
   - Search endpoint: `POST /api/search?q=query` returns streaming SSE results
 - **AI endpoints:**
   - `POST /api/ai/notesheet` — Generate study notesheet from text input
-  - `POST /api/ai/notesheet/pdf` — Generate notesheet from uploaded PDF
-  - `POST /api/ai/notesheet/youtube` — Generate notesheet from YouTube URL
-  - `POST /api/ai/quiz` — Generate quiz questions
+  - `POST /api/ai/pdf-notesheet/stream` — Generate notesheet from uploaded PDF (SSE streaming)
+  - `POST /api/ai/youtube-notesheet/stream` — Generate notesheet from YouTube URL (SSE streaming)
+  - `POST /api/ai/quiz/generate` — Generate quiz questions
   - `POST /api/ai/notesheet/edit` — Edit existing notesheet via AI instruction
-  - `POST /api/ai/explain` — Explain a concept
-  - `POST /api/ai/flashcards` — Generate flashcards
+- **PDF extraction (3-stage):**
+  1. `pdftotext` (Linux with poppler-utils) — fast path, handles 90%+
+  2. `PyMuPDF` (cross-platform, Windows fallback) — no external tools needed
+  3. Ollama `qwen2.5vl:7b` (OCR for scanned/image PDFs) — tries both Tailscale IP and localhost
 - **CRUD endpoints:** Standard REST for `/api/notes`, `/api/todos`, `/api/bookmarks`
 - **Bulk delete:** `POST /api/notes/delete-old` accepts `{older_than_days, title_prefix?}`
 - **Stats:** `GET /api/stats`, `GET /api/notesheet/stats`
-- **CORS:** Whitelists Vercel domains + localhost:8080
+- **CORS:** Whitelists Vercel domains, Tunnel URL, `localhost:8080` + `localhost:5173`
 - **Static files:** Root-level static assets (`/favicon.ico`, `/apple-touch-icon.png`, `/icons/favicon.svg`) served via `FileResponse` routes in `main.py`. Files stored in `fastapi-app/static/`.
 
 ### 3.4 Ollama (AI)
-- **Host:** Internal network address (set via `OLLAMA_BASE` env var in FastAPI)
+- **Host:** Runs on the homeserver alongside FastAPI. FastAPI configured with `OLLAMA_HOST = "http://100.65.172.94:11434"`, with fallback to `http://localhost:11434` for same-machine setups.
 - **Models:**
   - `qwen3:8b` — Primary model for notesheet generation, quiz generation, AI editing, explanations
   - `qwen2.5vl:7b` — Vision/OCR model for PDF text extraction fallback
+  - `fin-o1:8b`, `fin-r1:7b`, `qwen3:30b-a3b` — Available but unused
 - **Used by:** FastAPI backend for all AI features
 
 ### 3.5 Google Identity Services (Drive API)
@@ -217,7 +238,10 @@ skillstack/
 ├── index.html                     # SPA (single file, ~5500 lines)
 ├── CLAUDE.md                      # Project state & context
 ├── PROJECT_BRIEF.md              # THIS FILE — comprehensive reference
-├── vercel.json                    # SPA rewrites config
+├── docs/
+│   └── architecture/decisions/
+│       └── 0001-port-migration-and-uv.md  # ADR: uv, port 8080, health probes
+├── vercel.json                    # API proxy + SPA rewrites config
 ├── vite.config.js                 # Vite build config
 ├── sw.js                          # Service worker (offline caching)
 ├── schema.sql                     # Supabase schema migration
@@ -239,10 +263,13 @@ skillstack/
 │   ├── favicon.ico
 │   └── apple-touch-icon.png
 │
-├── fastapi-app/                   # FastAPI backend
-│   ├── main.py                    # All API endpoints (~600 lines)
+├── fastapi-app/                   # FastAPI backend (homeserver)
+│   ├── main.py                    # All API endpoints (~1200 lines)
 │   ├── search_engine.py           # ChromaDB vector search
 │   ├── dashboard.db               # SQLite database (auto-created)
+│   ├── pyproject.toml             # Python project manifest (uv)
+│   ├── uv.lock                    # Deterministic lockfile
+│   ├── .venv/                     # Virtual environment (uv managed)
 │   ├── static/                    # Static files served by FastAPI
 │   │   ├── favicon.ico
 │   │   ├── apple-touch-icon.png
@@ -279,10 +306,16 @@ skillstack/
 cd ~/my-project/skillstack
 npx vercel deploy --prod
 
-# Run FastAPI backend locally
+# Run FastAPI backend (Linux VM / this machine)
 cd ~/my-project/skillstack/fastapi-app
-venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
+uv sync
+.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
 
+# Run FastAPI backend (Windows homeserver — PowerShell as Admin)
+cd C:\skillstack\fastapi-app
+C:\Users\NAVEE\.local\bin\uv sync
+taskkill /IM uvicorn.exe /F
+start /B .venv\Scripts\uvicorn main:app --host 0.0.0.0 --port 8080
 
 # Run tests
 cd ~/my-project/skillstack
@@ -301,14 +334,18 @@ npx supabase db query --linked --file schema.sql
 
 - **Google Drive OAuth timeout in Playwright:** 8s timeout added around `requestDriveToken()`. Falls back to HTML download.
 - **Notesheet limit reached:** 50 notesheets max. Clear via Settings → Data Management or Saved Notesheets → Mass Delete.
+- **Vercel API proxy returns 502:** Tailscale Funnel or FastAPI may be down on the homeserver. Check `https://homeserver.buri-chromatic.ts.net/live`. Restart with `taskkill /IM uvicorn.exe /F` then `start /B .venv\Scripts\uvicorn main:app --host 0.0.0.0 --port 8080`.
 - **Vercel not serving SPA:** Ensure `vercel.json` has SPA rewrites. `"rewrites": [{"source": "/(.*)", "destination": "/index.html"}]`
 - **Express app on Vercel needs `vercel.json`:** Must configure `@vercel/node` builder, otherwise app.js is served as static file.
+- **PDF upload hangs:** The homeserver may not be running, or `git pull` hasn't been run since the latest fix (60s timeout + PyMuPDF fallback).
+- **ChromaDB crash after notesheet:** Non-fatal. Notesheet is saved to SQLite successfully. The background vector indexing can fail if metadata is empty — run `git pull` on the homeserver for the fix.
 
 ---
 
 ## 11. Security Notes
 
 - **Supabase anon key:** Public — safe to expose in frontend code. RLS policies enforce per-user auth. **Service key is never committed.**
-- **Ollama:** Internal network only. Not exposed publicly.
+- **Ollama:** Internal network only (Tailscale IP `100.65.172.94:11434`). Not exposed directly — only accessible through the FastAPI backend which has CORS restrictions.
+- **FastAPI exposed via Tailscale Funnel:** Accessible at `homeserver.buri-chromatic.ts.net`. Protected by Tailscale's Funnel auth layer. Only `/api/*` paths are proxied through Vercel.
 - **Secrets management:** All API keys, client secrets, and tokens are stored in environment variables or `~/.claude.json`. Never in the codebase.
 - **Don't commit:** `.env` files, `credentials.json`, service account keys, or any file containing `secret`, `key`, or `token` values.
